@@ -1,4 +1,4 @@
-// modbus_reader.c
+// main.c - COEL E33 DataLogger RPi
  #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <modbus/modbus.h>
 
-#define DEVICE     "/dev/serial0"  // deve apontar p/ ttyAMA0 (PL011)
+#define DEVICE     "/dev/serial0" 
 #define BAUD_RATE  9600
 #define PARITY 'N'
 #define DATA_BITS  8

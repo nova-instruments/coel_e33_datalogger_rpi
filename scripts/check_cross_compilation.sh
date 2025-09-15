@@ -145,18 +145,18 @@ if [ -d "$BUILD_DIR" ]; then
     log_success "Diretório de build encontrado: $BUILD_DIR"
     
     # Verificar se há executável
-    if [ -f "$BUILD_DIR/bin/modbus_reader" ]; then
-        log_success "Executável encontrado: $BUILD_DIR/bin/modbus_reader"
+    if [ -f "$BUILD_DIR/bin/app" ]; then
+        log_success "Executável encontrado: $BUILD_DIR/bin/app"
 
         # Verificar arquitetura
-        if file "$BUILD_DIR/bin/modbus_reader" | grep -q "ARM"; then
+        if file "$BUILD_DIR/bin/app" | grep -q "ARM"; then
             log_success "  ✓ Executável é ARM"
         else
             log_warning "  ⚠ Executável pode não ser ARM"
         fi
 
         # Mostrar tamanho
-        SIZE=$(ls -lh "$BUILD_DIR/bin/modbus_reader" | awk '{print $5}')
+        SIZE=$(ls -lh "$BUILD_DIR/bin/app" | awk '{print $5}')
         log_info "  Tamanho: $SIZE"
     else
         log_warning "Executável não encontrado - execute make para compilar"

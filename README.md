@@ -87,21 +87,21 @@ make deploy RPI_IP=192.168.1.100 RPI_USER=pi
 ./deploy_to_rpi.sh <IP_DA_RPI> <USUARIO>
 
 # Ou via SCP
-scp build-rpi/bin/modbus_reader pi@<IP>:~/
+scp build-rpi/bin/app pi@<IP>:~/
 ```
 
 ### Execução na Raspberry Pi
 
 ```bash
 # Executar com privilégios de root (necessário para acesso serial)
-sudo ./modbus_reader
+sudo ./app
 ```
 
 ## 📁 Estrutura do Projeto
 
 ```
 coel_e33_datalogger_rpi/
-├── modbus_reader.c                    # Código principal
+├── main.c                            # Código principal
 ├── CMakeLists.txt                     # Configuração CMake
 ├── user_cross_compile_setup.cmake     # Toolchain ARM
 ├── Makefile                          # Comandos facilitados
@@ -169,7 +169,7 @@ Endereço 0x20D: 1 (0x0001) - Binário: 1
 make test
 
 # Verificar se executável é ARM
-file build-rpi/bin/modbus_reader
+file build-rpi/bin/app
 ```
 
 ## 🔧 Comandos Úteis

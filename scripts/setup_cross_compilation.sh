@@ -239,10 +239,10 @@ log_info "Testando compilação do projeto..."
 
 if make -C build-rpi -j$(nproc) > /tmp/build_test.log 2>&1; then
     log_success "Projeto compilado com sucesso!"
-    log_info "Executável gerado: $BUILD_DIR/bin/modbus_reader"
+    log_info "Executável gerado: $BUILD_DIR/bin/app"
 
     # Verificar se o executável é ARM
-    if file "$BUILD_DIR/bin/modbus_reader" | grep -q "ARM"; then
+    if file "$BUILD_DIR/bin/app" | grep -q "ARM"; then
         log_success "Executável é ARM - cross-compilation funcionando!"
     else
         log_warning "Executável pode não ser ARM"
@@ -275,13 +275,13 @@ log_info "Para reconfigurar o CMake (se necessário):"
 log_info "  cmake -DCMAKE_TOOLCHAIN_FILE=./user_cross_compile_setup.cmake -B build-rpi -S ."
 echo
 log_info "Executável será gerado em:"
-log_info "  $BUILD_DIR/bin/modbus_reader"
+log_info "  $BUILD_DIR/bin/app"
 echo
 log_info "Para transferir para Raspberry Pi:"
 log_info "  ./deploy_to_rpi.sh [IP_DA_RPI] [USUARIO]"
 echo
 log_info "Ou manualmente:"
-log_info "  scp build-rpi/bin/modbus_reader pi@<IP_DA_RPI>:~/"
+log_info "  scp build-rpi/bin/app pi@<IP_DA_RPI>:~/"
 log_info "  scp deps/libmodbus/install/lib/libmodbus.so* pi@<IP_DA_RPI>:/usr/local/lib/"
 log_info "  scp deps/libgpiod/install/lib/libgpiod.so* pi@<IP_DA_RPI>:/usr/local/lib/"
 echo

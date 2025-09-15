@@ -40,10 +40,10 @@ link_directories(
 )
 
 # Executável principal
-add_executable(modbus_reader modbus_reader.c)
+add_executable(app main.c)
 
 # Configurações de compilação
-target_compile_options(modbus_reader PRIVATE
+target_compile_options(app PRIVATE
     -Wall
     -Wextra
     -O2
@@ -51,7 +51,7 @@ target_compile_options(modbus_reader PRIVATE
 )
 
 # Linking das bibliotecas
-target_link_libraries(modbus_reader
+target_link_libraries(app
     modbus
     gpiod
     udev
@@ -59,7 +59,7 @@ target_link_libraries(modbus_reader
 )
 
 # Configurar diretório de saída
-set_target_properties(modbus_reader PROPERTIES
+set_target_properties(app PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
@@ -69,5 +69,5 @@ message(STATUS "Compilador C: ${CMAKE_C_COMPILER}")
 message(STATUS "Sistema alvo: ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "Cross-compiling: ${CMAKE_CROSSCOMPILING}")
 message(STATUS "Diretório de dependências: ${DEPS_DIR}")
-message(STATUS "Executável será gerado em: ${CMAKE_BINARY_DIR}/bin/modbus_reader")
+message(STATUS "Executável será gerado em: ${CMAKE_BINARY_DIR}/bin/app")
 message(STATUS "============================================")

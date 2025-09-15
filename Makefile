@@ -48,7 +48,7 @@ build:
 	fi
 	@make -C $(BUILD_DIR) -j$$(nproc)
 	@echo "✅ Compilação concluída!"
-	@echo "📁 Executável: $(BUILD_DIR)/bin/modbus_reader"
+	@echo "📁 Executável: $(BUILD_DIR)/bin/app"
 
 clean:
 	@echo "🧹 Limpando arquivos de build..."
@@ -63,7 +63,7 @@ rebuild: clean setup build
 
 deploy:
 	@echo "🚀 Fazendo deploy para Raspberry Pi..."
-	@if [ ! -f "$(BUILD_DIR)/bin/modbus_reader" ]; then \
+	@if [ ! -f "$(BUILD_DIR)/bin/app" ]; then \
 		echo "❌ Executável não encontrado. Execute 'make build' primeiro."; \
 		exit 1; \
 	fi
@@ -72,10 +72,10 @@ deploy:
 
 test: check
 	@echo "🧪 Executando testes básicos..."
-	@if [ -f "$(BUILD_DIR)/bin/modbus_reader" ]; then \
+	@if [ -f "$(BUILD_DIR)/bin/app" ]; then \
 		echo "✅ Executável existe"; \
-		file $(BUILD_DIR)/bin/modbus_reader; \
-		ls -lh $(BUILD_DIR)/bin/modbus_reader; \
+		file $(BUILD_DIR)/bin/app; \
+		ls -lh $(BUILD_DIR)/bin/app; \
 	else \
 		echo "❌ Executável não encontrado"; \
 		exit 1; \
@@ -85,7 +85,7 @@ info:
 	@echo "=== Informações do Projeto Modbus Reader ==="
 	@echo ""
 	@echo "📁 Estrutura:"
-	@echo "  • modbus_reader.c          - Código principal"
+	@echo "  • main.c                   - Código principal"
 	@echo "  • CMakeLists.txt           - Configuração CMake"
 	@echo "  • user_cross_compile_setup.cmake - Toolchain ARM"
 	@echo "  • scripts/                 - Scripts de build"
@@ -99,9 +99,9 @@ info:
 	@echo "🎯 Alvo: Raspberry Pi 3 (ARM Cortex-A53)"
 	@echo "📡 Protocolo: Modbus RTU via RS-485"
 	@echo ""
-	@if [ -f "$(BUILD_DIR)/bin/modbus_reader" ]; then \
-		echo "📦 Executável: ✅ $(BUILD_DIR)/bin/modbus_reader"; \
-		echo "📏 Tamanho: $$(ls -lh $(BUILD_DIR)/bin/modbus_reader | awk '{print $$5}')"; \
+	@if [ -f "$(BUILD_DIR)/bin/app" ]; then \
+		echo "📦 Executável: ✅ $(BUILD_DIR)/bin/app"; \
+		echo "📏 Tamanho: $$(ls -lh $(BUILD_DIR)/bin/app | awk '{print $$5}')"; \
 	else \
 		echo "📦 Executável: ❌ Não compilado"; \
 	fi

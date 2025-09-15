@@ -5,8 +5,8 @@
 
 RPI_IP=${1:-"192.168.3.22"}  # IP padrão da RPi
 RPI_USER=${2:-"nova"}           # Usuário padrão
-BINARY_PATH="build-rpi/bin/modbus_reader"
-REMOTE_PATH="/home/$RPI_USER/modbus_reader"
+BINARY_PATH="build-rpi/bin/app"
+REMOTE_PATH="/home/$RPI_USER/app"
 
 echo "🚀 Deploying Modbus Reader to Raspberry Pi..."
 echo "   Target: $RPI_USER@$RPI_IP"
