@@ -40,6 +40,18 @@ link_directories(
     ${LIBUDEV_DIR}/lib
 )
 
+# Biblioteca Modbus
+add_library(modbus_lib STATIC
+    lib/modbus.c
+    lib/modbus.h
+)
+
+# Biblioteca DataLogger
+add_library(datalogger_lib STATIC
+    lib/datalogger.c
+    lib/datalogger.h
+)
+
 # Biblioteca USB Manager
 add_library(usb_manager STATIC
     lib/usb_manager.c
@@ -59,6 +71,8 @@ target_compile_options(app PRIVATE
 
 # Linking das bibliotecas
 target_link_libraries(app
+    modbus_lib
+    datalogger_lib
     usb_manager
     modbus
     gpiod

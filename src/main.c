@@ -1,87 +1,156 @@
-// main.c - COEL E33 DataLogger RPi
+/**
+ * @file main.c
+ * @brief COEL E33 DataLogger RPi - Main Application
+ * @author Nova Instruments
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <string.h>
 #include <unistd.h>
-#include <modbus/modbus.h>
+#include <signal.h>
+#include <stdbool.h>
+#include "modbus.h"
+#include "datalogger.h"
 #include "usb_manager.h"
 
-#define DEVICE     "/dev/serial0" 
-#define BAUD_RATE  9600
-#define PARITY 'N'
-#define DATA_BITS  8
-#define STOP_BITS  1
-#define SLAVE_ID   1
+// Configurações da aplicação
+#define LOOP_INTERVAL_SECONDS 300  // 5 minutos = 300 segundos
+#define DEVICE_NAME "NI00002"  // Nome do dispositivo - CONFIGURÁVEL
 
-// Endereços Modbus a serem lidos
-#define ADDR_0x200 0x200
-#define ADDR_0x20D 0x20D
+// Variável global para controle do loop principal
+static volatile bool running = true;
 
-static void die(modbus_t *ctx, const char *msg) {
-    fprintf(stderr, "%s: %s\n", msg, modbus_strerror(errno));
-    if (ctx) {
-        modbus_close(ctx);
-        modbus_free(ctx);
-    }
-    exit(EXIT_FAILURE);
+/**
+ * @brief Handler para sinais (SIGINT, SIGTERM)
+ */
+static void signal_handler(int sig) {
+    printf("\nSinal %d recebido. Finalizando aplicação...\n", sig);
+    running = false;
 }
 
+/**
+ * @brief Configura handlers de sinais para saída graceful
+ */
+static void setup_signal_handlers(void) {
+    signal(SIGINT, signal_handler);   // Ctrl+C
+    signal(SIGTERM, signal_handler);  // Termination signal
+}
+
+/**
+ * @brief Função principal da aplicação
+ */
 int main(void) {
-    modbus_t *ctx = NULL;
-    uint16_t tab_reg[2];
-    int rc;
+    printf("=== COEL E33 DataLogger RPi ===\n");
+    printf("Nova Instruments\n");
+    printf("Dispositivo: %s\n\n", DEVICE_NAME);
 
-    printf("Iniciando leitura Modbus...\n");
-    printf("Dispositivo: %s\n", DEVICE);
-    printf("Configuração: %d-%c-%d-%d\n", BAUD_RATE, PARITY, DATA_BITS, STOP_BITS);
-    printf("Slave ID: %d\n", SLAVE_ID);
-    printf("Endereços: 0x%X (0x200) e 0x%X (0x20D)\n", ADDR_0x200, ADDR_0x20D);
-    printf("----------------------------------------\n");
+    // Configurar handlers de sinais
+    setup_signal_handlers();
 
-    // 1) Cria contexto RTU
-    ctx = modbus_new_rtu(DEVICE, BAUD_RATE, PARITY, DATA_BITS, STOP_BITS);
-    if (!ctx) die(NULL, "Erro ao criar contexto Modbus");
+    // Inicializar conexão Modbus
+    modbus_context_t* modbus_ctx = modbus_init();
+    if (!modbus_ctx) {
+        fprintf(stderr, "Erro: Falha ao inicializar Modbus\n");
+        return EXIT_FAILURE;
+    }
 
-    // 2) Define ID do escravo
-    if (modbus_set_slave(ctx, SLAVE_ID) == -1)
-        die(ctx, "Erro ao definir slave ID");
+    // Inicializar DataLogger
+    datalogger_context_t* datalogger_ctx = datalogger_init(DEVICE_NAME);
+    if (!datalogger_ctx) {
+        fprintf(stderr, "Erro: Falha ao inicializar DataLogger\n");
+        modbus_cleanup(modbus_ctx);
+        return EXIT_FAILURE;
+    }
 
-    // 3) Ajusta timeouts antes do connect
-    modbus_set_response_timeout(ctx, 0, 500000); // 500 ms
-    modbus_set_byte_timeout(ctx, 0, 200000);     // 200 ms por byte
+    printf("\nIniciando loop de aquisição de dados (intervalo: %d segundos = %d minutos)\n",
+           LOOP_INTERVAL_SECONDS, LOOP_INTERVAL_SECONDS / 60);
+    printf("Pressione Ctrl+C para finalizar\n\n");
 
-    // 4) Abre a porta serial
-    if (modbus_connect(ctx) == -1)
-        die(ctx, "Erro na conexão");
+    // Loop principal de aquisição e logging
+    // Estado anterior da porta (inicializar com valor inválido)
+    bool previous_door_state_valid = false;
+    uint16_t previous_door_state = 0;
+    uint32_t door_change_logs = 0;
 
-    printf("Conexão estabelecida com sucesso!\n\n");
+    // Controle de tempo para log periódico
+    time_t last_periodic_log = time(NULL);
 
-    // 5) Loop principal de leitura
-    while (1) {
-        printf("Lendo registradores...\n");
+    while (running) {
+        modbus_data_t data;
+        bool should_log = false;
+        bool is_door_change = false;
 
-        rc = modbus_read_registers(ctx, ADDR_0x200, 1, &tab_reg[0]);
-        if (rc == -1) {
-            fprintf(stderr, "Erro ao ler endereço 0x200: %s\n", modbus_strerror(errno));
+        printf("Lendo registradores Modbus...\n");
+
+        if (modbus_read_all(modbus_ctx, &data)) {
+            // Exibir dados na tela
+            modbus_print_data(&data);
+
+            // Verificar mudança de estado da porta
+            if (data.valid_0x20d && previous_door_state_valid) {
+                if (data.addr_0x20d != previous_door_state) {
+                    should_log = true;
+                    is_door_change = true;
+                    printf("🚪 MUDANÇA DE ESTADO DA PORTA: %u → %u\n",
+                           previous_door_state, data.addr_0x20d);
+                }
+            }
+
+            // Verificar se é hora do log periódico (5 minutos)
+            time_t current_time = time(NULL);
+            if (!should_log && (current_time - last_periodic_log) >= LOOP_INTERVAL_SECONDS) {
+                should_log = true;
+                last_periodic_log = current_time;
+                printf("⏰ Log periódico (5 minutos)\n");
+            }
+
+            // Registrar no datalogger se necessário
+            if (should_log) {
+                if (datalogger_log_data(datalogger_ctx, &data)) {
+                    if (is_door_change) {
+                        printf("✅ Mudança de porta registrada imediatamente no log\n");
+                        door_change_logs++;
+                    } else {
+                        printf("✅ Dados registrados no log (periódico)\n");
+                    }
+                } else {
+                    printf("❌ Erro ao registrar dados no log\n");
+                }
+            }
+
+            // Atualizar estado anterior da porta
+            if (data.valid_0x20d) {
+                previous_door_state = data.addr_0x20d;
+                previous_door_state_valid = true;
+            }
+
         } else {
-            printf("Endereço 0x200: %u (0x%04X)\n", tab_reg[0], tab_reg[0]);
-        }
+            printf("❌ Erro: Falha na leitura de todos os registradores\n");
 
-        rc = modbus_read_registers(ctx, ADDR_0x20D, 1, &tab_reg[1]);
-        if (rc == -1) {
-            fprintf(stderr, "Erro ao ler endereço 0x20D: %s\n", modbus_strerror(errno));
-        } else {
-            printf("Endereço 0x20D: %u (0x%04X) - Binário: %s\n", tab_reg[1], tab_reg[1],
-                   (tab_reg[1] == 0) ? "0" : "1");
+            // Mesmo com erro, tentar registrar no log para manter histórico
+            datalogger_log_data(datalogger_ctx, &data);
         }
 
         printf("----------------------------------------\n");
-        sleep(2);
+
+        // Aguardar próxima leitura (verificação mais frequente para detectar mudanças)
+        // Verificar a cada 2 segundos em vez de 5 minutos
+        for (int i = 0; i < 2 && running; i++) {
+            sleep(1);
+        }
     }
 
-    // (não alcançado neste exemplo)
-    modbus_close(ctx);
-    modbus_free(ctx);
-    return 0;
+    // Cleanup
+    printf("\nFinalizando aplicação...\n");
+
+    // Mostrar estatísticas finais
+    datalogger_print_stats(datalogger_ctx);
+    printf("Mudanças de porta registradas: %u\n", door_change_logs);
+
+    // Limpar recursos
+    datalogger_cleanup(datalogger_ctx);
+    modbus_cleanup(modbus_ctx);
+
+    printf("Aplicação finalizada com sucesso.\n");
+    return EXIT_SUCCESS;
 }

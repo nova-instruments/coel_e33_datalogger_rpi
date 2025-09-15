@@ -10,9 +10,13 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 
 - 🔌 **Comunicação Modbus RTU** via porta serial (`/dev/serial0`)
 - 🎯 **Cross-compilation** para ARM (Raspberry Pi 3/4)
-- 📊 **Leitura de registradores** 0x200 e 0x20D
-- 🔄 **Loop contínuo** com intervalo de 2 segundos
+- 📊 **Leitura de registradores** 0x200 (Temperatura) e 0x20D (Porta)
+- 📝 **DataLogger integrado** com formato TXT personalizado
+- 🕐 **Sincronização com RTC** (DS3231) para timestamps precisos
+- 🔄 **Duplo modo de logging**: periódico (5 min) + imediato (mudança de porta)
+- 🚪 **Detecção de mudança de estado** da porta com registro instantâneo
 - 📱 **Deploy automatizado** via SSH
+- 💾 **Armazenamento local** em `/home/nova/`
 
 ## 🛠️ Configuração do Ambiente
 
@@ -189,8 +193,9 @@ make info
 make check
 ```
 
-## 📝 Configurações Modbus
+## 📝 Configurações
 
+### Modbus RTU
 - **Dispositivo**: `/dev/serial0`
 - **Baud Rate**: 9600
 - **Paridade**: Nenhuma (N)
@@ -198,6 +203,61 @@ make check
 - **Stop Bits**: 1
 - **Slave ID**: 1
 - **Timeout**: 500ms (resposta), 200ms (byte)
+- **Registradores**: 0x200 (Temperatura), 0x20D (Porta)
+
+### DataLogger
+- **Nome do dispositivo**: Configurável em `src/main.c` (`DEVICE_NAME`)
+- **Diretório de logs**: `/home/nova/`
+- **Formato do arquivo**: `NOME_YYYYMMDD_HHMMSS.txt`
+- **Modo de logging**:
+  - **Periódico**: A cada 5 minutos (300 segundos)
+  - **Imediato**: Quando detecta mudança de estado da porta
+- **Frequência de verificação**: A cada 2 segundos (para detectar mudanças)
+- **Fonte de tempo**: RTC (DS3231) com fallback para sistema
+
+### Formato do Log TXT
+```
+NAME: NI00002
+R;Data Hora;TPrincipal;PA
+1;2024-09-15 16:47:30;1234;1
+2;2024-09-15 16:47:32;1235;0
+3;2024-09-15 16:47:34;ERROR;ERROR
+```
+
+Onde:
+- **NAME**: Nome do dispositivo (configurável)
+- **R**: Número sequencial do registro
+- **Data Hora**: Timestamp do RTC (DD/MM/YYYY HH:MM:SS)
+- **TPrincipal**: Temperatura do registrador 0x200 (valor real: 231 → 23.1°C)
+- **PA**: Porta Aberta (0=fechada, 1=aberta) do registrador 0x20D
+
+### Comportamento do Logging
+
+#### 📅 Log Periódico (5 minutos)
+- Registra dados automaticamente a cada 5 minutos
+- Mantém histórico contínuo independente de mudanças
+
+#### 🚪 Log por Mudança de Porta (Imediato)
+- Detecta mudanças no estado da porta (0↔1)
+- Registra **imediatamente** quando detecta mudança
+- Exibe mensagem: `🚪 MUDANÇA DE ESTADO DA PORTA: 0 → 1`
+- Não interfere no ciclo periódico
+
+#### ⚡ Frequência de Verificação
+- **Leitura Modbus**: A cada 2 segundos
+- **Log periódico**: A cada 5 minutos
+- **Log de mudança**: Instantâneo quando detectado
+
+#### 📊 Exemplo de Comportamento
+```
+16:00:00 - Log periódico (temperatura: 23.1°C, porta: 0)
+16:01:30 - Porta muda para 1 → Log imediato
+16:03:45 - Porta muda para 0 → Log imediato
+16:05:00 - Log periódico (temperatura: 23.3°C, porta: 0)
+```
+
+#### 📁 Exemplo de Arquivo Gerado
+**Arquivo:** `/home/nova/NI00002_20240915_160000.txt`
 
 ## 🤝 Contribuição
 
