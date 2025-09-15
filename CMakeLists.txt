@@ -30,6 +30,7 @@ include_directories(
     ${LIBMODBUS_DIR}/include
     ${LIBGPIOD_DIR}/include
     ${LIBUDEV_DIR}/include
+    ${CMAKE_SOURCE_DIR}/lib
 )
 
 # Link directories
@@ -39,8 +40,14 @@ link_directories(
     ${LIBUDEV_DIR}/lib
 )
 
+# Biblioteca USB Manager
+add_library(usb_manager STATIC
+    lib/usb_manager.c
+    lib/usb_manager.h
+)
+
 # Executável principal
-add_executable(app main.c)
+add_executable(app src/main.c)
 
 # Configurações de compilação
 target_compile_options(app PRIVATE
@@ -52,6 +59,7 @@ target_compile_options(app PRIVATE
 
 # Linking das bibliotecas
 target_link_libraries(app
+    usb_manager
     modbus
     gpiod
     udev

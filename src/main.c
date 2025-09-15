@@ -1,10 +1,11 @@
 // main.c - COEL E33 DataLogger RPi
- #include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <modbus/modbus.h>
+#include "usb_manager.h"
 
 #define DEVICE     "/dev/serial0" 
 #define BAUD_RATE  9600

@@ -101,9 +101,13 @@ sudo ./app
 
 ```
 coel_e33_datalogger_rpi/
-├── main.c                            # Código principal
-├── CMakeLists.txt                     # Configuração CMake
-├── user_cross_compile_setup.cmake     # Toolchain ARM
+├── src/                              # Código fonte principal
+│   └── main.c                        # Aplicação principal
+├── lib/                              # Bibliotecas do projeto
+│   ├── usb_manager.c                 # Gerenciador USB
+│   └── usb_manager.h                 # Headers USB
+├── CMakeLists.txt                    # Configuração CMake
+├── user_cross_compile_setup.cmake    # Toolchain ARM
 ├── Makefile                          # Comandos facilitados
 ├── deploy_to_rpi.sh                  # Script de deploy
 ├── scripts/                          # Scripts de build
