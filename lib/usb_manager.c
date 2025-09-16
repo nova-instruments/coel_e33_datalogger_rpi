@@ -338,42 +338,9 @@ int unmount_usb_device(const char* mount_point) {
     }
 }
 
-// Função para verificar espaço no USB
-bool check_usb_space(const char* mount_point, unsigned long file_size) {
-    if (!mount_point) {
-        return false;
-    }
 
-    struct statvfs stat;
-    if (statvfs(mount_point, &stat) != 0) {
-        printf("Erro ao obter informações de espaço: %s\n", strerror(errno));
-        return false;
-    }
 
-    unsigned long available_bytes = stat.f_bavail * stat.f_frsize;
-    unsigned long required_bytes = file_size + (10 * 1024 * 1024); // 10MB de margem
 
-    printf("Espaço disponível: %lu bytes, necessário: %lu bytes\n", available_bytes, required_bytes);
-
-    return available_bytes >= required_bytes;
-}
-
-// Função para obter informações de espaço
-int get_usb_space_info(const char* mount_point, unsigned long* free_space_mb, unsigned long* total_space_mb) {
-    if (!mount_point || !free_space_mb || !total_space_mb) {
-        return -1;
-    }
-
-    struct statvfs stat;
-    if (statvfs(mount_point, &stat) != 0) {
-        return -1;
-    }
-
-    *free_space_mb = (stat.f_bavail * stat.f_frsize) / (1024 * 1024);
-    *total_space_mb = (stat.f_blocks * stat.f_frsize) / (1024 * 1024);
-
-    return 0;
-}
 
 // Função para obter tamanho do arquivo
 static long get_file_size(const char* file_path) {
@@ -391,15 +358,9 @@ static long get_file_size(const char* file_path) {
 
 // Função para gerar nome único do arquivo de destino
 static void generate_dest_filename(char* dest_path, size_t dest_size, const char* mount_point, const char* source_file) {
-    // Obter informações da máquina
-    extern const char* get_machine_name(void);
-    extern const char* get_serial_number(void);
-
-    const char* machine_name = get_machine_name();
-    const char* serial_number = get_serial_number();
-
-    if (!machine_name) machine_name = "NI";
-    if (!serial_number) serial_number = "000000";
+    // Usar valores fixos para máquina
+    const char* machine_name = "NI";
+    const char* serial_number = "000000";
 
     // Obter timestamp atual
     time_t now = time(NULL);
@@ -448,17 +409,7 @@ int copy_log_to_usb(const usb_device_info_t* usb_device, const char* log_file_pa
     }
 
     if (callbacks && callbacks->on_progress) {
-        callbacks->on_progress(10, "Verificando espaço no USB...");
-    }
-
-    // Verificar espaço disponível
-    if (!check_usb_space(usb_device->mount_point, file_size)) {
-        const char* error_msg = "Espaço insuficiente no USB";
-        printf("Erro: %s\n", error_msg);
-        if (callbacks && callbacks->on_error) {
-            callbacks->on_error(USB_ERROR_COPY_FAILED, error_msg);
-        }
-        return USB_ERROR_COPY_FAILED;
+        callbacks->on_progress(10, "Preparando cópia...");
     }
 
     if (callbacks && callbacks->on_progress) {
@@ -615,17 +566,11 @@ int extract_log_to_usb(const usb_callbacks_t* callbacks) {
     }
 
     // Construir caminho do arquivo de log
-    extern const char* get_machine_name(void);
-    extern const char* get_serial_number(void);
-
-    const char* machine_name = get_machine_name();
-    const char* serial_number = get_serial_number();
-
-    if (!machine_name) machine_name = "NI";
-    if (!serial_number) serial_number = "000000";
+    const char* machine_name = "NI";
+    const char* serial_number = "000000";
 
     char log_file_path[256];
-    snprintf(log_file_path, sizeof(log_file_path), "/tmp/%s/%s.txt", machine_name, serial_number);
+    snprintf(log_file_path, sizeof(log_file_path), "/home/nova/%s*.txt", machine_name);
 
     printf("Procurando arquivo de log: %s\n", log_file_path);
 
@@ -806,4 +751,183 @@ int force_unmount_all_usb(void) {
 
     printf("Desmontagem forçada concluída. %d de %d pontos desmontados.\n", unmounted_count, mount_count);
     return unmounted_count;
+}
+
+/**
+ * @brief Extração automática completa de todos os logs para USB
+ */
+int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* callbacks) {
+    if (!source_dir) {
+        if (callbacks && callbacks->on_error) {
+            callbacks->on_error(USB_ERROR_INVALID_PARAM, "Diretório de origem inválido");
+        }
+        return USB_ERROR_INVALID_PARAM;
+    }
+
+    if (callbacks && callbacks->on_progress) {
+        callbacks->on_progress(10, "Detectando dispositivos USB...");
+    }
+
+    // Detectar dispositivos USB
+    usb_device_info_t devices[5];
+    int device_count = detect_usb_devices(devices, 5);
+
+    if (device_count <= 0) {
+        if (callbacks && callbacks->on_error) {
+            callbacks->on_error(USB_ERROR_NOT_FOUND, "Nenhum dispositivo USB encontrado");
+        }
+        return USB_ERROR_NOT_FOUND;
+    }
+
+    // Usar o primeiro dispositivo encontrado
+    usb_device_info_t* usb_device = &devices[0];
+
+    if (callbacks && callbacks->on_progress) {
+        callbacks->on_progress(20, "Montando dispositivo USB...");
+    }
+
+    // Montar dispositivo se necessário
+    if (!usb_device->is_mounted) {
+        int mount_result = mount_usb_device_auto(usb_device);
+        if (mount_result != 0) {
+            if (callbacks && callbacks->on_error) {
+                callbacks->on_error(USB_ERROR_MOUNT_FAILED, "Falha ao montar dispositivo USB");
+            }
+            return USB_ERROR_MOUNT_FAILED;
+        }
+    }
+
+    if (callbacks && callbacks->on_progress) {
+        callbacks->on_progress(25, "Limpando arquivos antigos do pen drive...");
+    }
+
+    // Limpar arquivos de log antigos do pen drive (apenas NI*.txt)
+    char cleanup_command[1024];
+    snprintf(cleanup_command, sizeof(cleanup_command),
+             "find \"%s\" -name \"NI*.txt\" -type f -delete 2>/dev/null",
+             usb_device->mount_point);
+    system(cleanup_command);
+
+    if (callbacks && callbacks->on_progress) {
+        callbacks->on_progress(30, "Copiando arquivos de log...");
+    }
+
+    // Copiar apenas arquivos de log do DataLogger (padrão: NI*.txt)
+    char command[1024];
+    snprintf(command, sizeof(command),
+             "find \"%s\" -name \"NI*.txt\" -type f -exec cp {} \"%s/\" \\; 2>/dev/null",
+             source_dir, usb_device->mount_point);
+
+    int copy_result = system(command);
+
+    // Verificar quantos arquivos foram copiados
+    char count_command[1024];
+    snprintf(count_command, sizeof(count_command),
+             "find \"%s\" -name \"NI*.txt\" -type f | wc -l",
+             usb_device->mount_point);
+
+    FILE* count_fp = popen(count_command, "r");
+    int file_count = 0;
+    if (count_fp) {
+        fscanf(count_fp, "%d", &file_count);
+        pclose(count_fp);
+    }
+
+    if (callbacks && callbacks->on_progress) {
+        char progress_msg[256];
+        snprintf(progress_msg, sizeof(progress_msg),
+                 "Sincronizando dados... (%d arquivos copiados)", file_count);
+        callbacks->on_progress(80, progress_msg);
+    }
+
+    // Sincronizar dados
+    sync();
+    sleep(1);
+
+    if (callbacks && callbacks->on_progress) {
+        callbacks->on_progress(90, "Desmontando dispositivo USB...");
+    }
+
+    // Desmontar dispositivo
+    int unmount_result = unmount_usb_device(usb_device->mount_point);
+
+    if (callbacks && callbacks->on_progress) {
+        callbacks->on_progress(100, "Extração concluída com sucesso!");
+    }
+
+    if (copy_result == 0 && unmount_result == 0) {
+        if (callbacks && callbacks->on_complete) {
+            char complete_msg[256];
+            snprintf(complete_msg, sizeof(complete_msg),
+                     "%d arquivos de log extraídos com sucesso para USB", file_count);
+            callbacks->on_complete(USB_SUCCESS, complete_msg);
+        }
+        return USB_SUCCESS;
+    } else {
+        if (callbacks && callbacks->on_error) {
+            callbacks->on_error(USB_ERROR_COPY_FAILED, "Erro durante cópia ou desmontagem");
+        }
+        return USB_ERROR_COPY_FAILED;
+    }
+}
+
+/**
+ * @brief Monitora continuamente inserção de pen drives para extração automática
+ */
+void usb_monitor_and_extract(const char* source_dir, volatile bool* running, const usb_callbacks_t* callbacks) {
+    if (!source_dir || !running) {
+        if (callbacks && callbacks->on_error) {
+            callbacks->on_error(USB_ERROR_INVALID_PARAM, "Parâmetros inválidos para monitoramento");
+        }
+        return;
+    }
+
+    printf("🔍 Iniciando monitoramento de pen drives para extração automática...\n");
+    printf("📁 Diretório de logs: %s\n", source_dir);
+    printf("💡 Insira um pen drive para iniciar extração automática\n");
+
+    time_t last_check = 0;
+    bool last_usb_detected = false;
+
+    while (*running) {
+        time_t current_time = time(NULL);
+
+        // Verificar a cada 3 segundos
+        if (current_time - last_check >= 3) {
+            last_check = current_time;
+
+            // Detectar dispositivos USB
+            usb_device_info_t devices[5];
+            int device_count = detect_usb_devices(devices, 5);
+
+            bool usb_detected = (device_count > 0);
+
+            // Se USB foi inserido (transição de não detectado para detectado)
+            if (usb_detected && !last_usb_detected) {
+                printf("\n🔌 Pen drive detectado! Iniciando extração automática...\n");
+
+                // Aguardar um pouco para estabilizar
+                sleep(2);
+
+                // Executar extração automática
+                int result = usb_auto_extract_all_logs(source_dir, callbacks);
+
+                if (result == USB_SUCCESS) {
+                    printf("✅ Extração concluída com sucesso!\n");
+                    printf("💡 Pen drive pode ser removido com segurança\n");
+                } else {
+                    printf("❌ Erro durante extração (código: %d)\n", result);
+                }
+
+                printf("💡 Aguardando próximo pen drive...\n");
+            }
+
+            last_usb_detected = usb_detected;
+        }
+
+        // Aguardar 1 segundo antes da próxima verificação
+        sleep(1);
+    }
+
+    printf("🛑 Monitoramento de pen drives finalizado\n");
 }

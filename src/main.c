@@ -9,16 +9,24 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <pthread.h>
+#include <time.h>
 #include "modbus.h"
 #include "datalogger.h"
 #include "usb_manager.h"
 
 // Configurações da aplicação
 #define LOOP_INTERVAL_SECONDS 300  // 5 minutos = 300 segundos
-#define DEVICE_NAME "NI00002"  // Nome do dispositivo - CONFIGURÁVEL
+#define DEVICE_NAME "NI00002"  // Nome do dispositivo
 
 // Variável global para controle do loop principal
 static volatile bool running = true;
+
+// Estrutura para passar dados para thread USB
+typedef struct {
+    const char* source_dir;
+    volatile bool* running;
+} usb_thread_data_t;
 
 /**
  * @brief Handler para sinais (SIGINT, SIGTERM)
@@ -26,6 +34,49 @@ static volatile bool running = true;
 static void signal_handler(int sig) {
     printf("\nSinal %d recebido. Finalizando aplicação...\n", sig);
     running = false;
+}
+
+/**
+ * @brief Callbacks para operações USB
+ */
+void usb_on_progress(int percentage, const char* message) {
+    printf("📦 USB [%d%%]: %s\n", percentage, message);
+}
+
+void usb_on_complete(usb_result_t result, const char* message) {
+    printf("✅ USB: %s\n", message);
+}
+
+void usb_on_error(usb_result_t error, const char* message) {
+    printf("❌ USB Erro [%d]: %s\n", error, message);
+}
+
+/**
+ * @brief Thread para monitoramento de pen drives
+ */
+void* usb_monitor_thread(void* arg) {
+    usb_thread_data_t* data = (usb_thread_data_t*)arg;
+
+    // Configurar callbacks
+    usb_callbacks_t callbacks = {
+        .on_progress = usb_on_progress,
+        .on_complete = usb_on_complete,
+        .on_error = usb_on_error
+    };
+
+    // Inicializar USB Manager
+    if (usb_manager_init() != 0) {
+        printf("❌ Erro ao inicializar USB Manager\n");
+        return NULL;
+    }
+
+    // Monitorar pen drives
+    usb_monitor_and_extract(data->source_dir, data->running, &callbacks);
+
+    // Cleanup
+    usb_manager_cleanup();
+
+    return NULL;
 }
 
 /**
@@ -60,6 +111,20 @@ int main(void) {
         fprintf(stderr, "Erro: Falha ao inicializar DataLogger\n");
         modbus_cleanup(modbus_ctx);
         return EXIT_FAILURE;
+    }
+
+    // Inicializar thread de monitoramento USB
+    pthread_t usb_thread;
+    usb_thread_data_t usb_data = {
+        .source_dir = "/home/nova",
+        .running = &running
+    };
+
+    printf("🔌 Iniciando monitoramento de pen drives para extração automática...\n");
+    if (pthread_create(&usb_thread, NULL, usb_monitor_thread, &usb_data) != 0) {
+        printf("⚠️  Aviso: Falha ao iniciar monitoramento USB (continuando sem esta funcionalidade)\n");
+    } else {
+        printf("✅ Monitoramento USB ativo\n");
     }
 
     printf("\nIniciando loop de aquisição de dados (intervalo: %d segundos = %d minutos)\n",
@@ -142,6 +207,10 @@ int main(void) {
 
     // Cleanup
     printf("\nFinalizando aplicação...\n");
+
+    // Aguardar thread USB finalizar
+    printf("🔌 Finalizando monitoramento USB...\n");
+    pthread_join(usb_thread, NULL);
 
     // Mostrar estatísticas finais
     datalogger_print_stats(datalogger_ctx);

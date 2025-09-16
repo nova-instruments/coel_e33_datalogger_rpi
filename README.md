@@ -9,12 +9,13 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 ### Características Principais
 
 - 🔌 **Comunicação Modbus RTU** via porta serial (`/dev/serial0`)
-- 🎯 **Cross-compilation** para ARM (Raspberry Pi 3/4)
+- 🎯 **Cross-compilation** para ARM (Raspberry Pi zero 2W/3)
 - 📊 **Leitura de registradores** 0x200 (Temperatura) e 0x20D (Porta)
 - 📝 **DataLogger integrado** com formato TXT personalizado
 - 🕐 **Sincronização com RTC** (DS3231) para timestamps precisos
 - 🔄 **Duplo modo de logging**: periódico (5 min) + imediato (mudança de porta)
 - 🚪 **Detecção de mudança de estado** da porta com registro instantâneo
+- 🔌 **Extração automática via pen drive** com monitoramento contínuo
 - 📱 **Deploy automatizado** via SSH
 - 💾 **Armazenamento local** em `/home/nova/`
 
@@ -108,8 +109,9 @@ coel_e33_datalogger_rpi/
 ├── src/                              # Código fonte principal
 │   └── main.c                        # Aplicação principal
 ├── lib/                              # Bibliotecas do projeto
-│   ├── usb_manager.c                 # Gerenciador USB
-│   └── usb_manager.h                 # Headers USB
+│   ├── modbus.c/.h                   # Biblioteca Modbus RTU
+│   ├── datalogger.c/.h               # Biblioteca DataLogger
+│   ├── usb_manager.c/.h              # Gerenciador USB
 ├── CMakeLists.txt                    # Configuração CMake
 ├── user_cross_compile_setup.cmake    # Toolchain ARM
 ├── Makefile                          # Comandos facilitados
@@ -258,6 +260,74 @@ Onde:
 
 #### 📁 Exemplo de Arquivo Gerado
 **Arquivo:** `/home/nova/NI00002_20240915_160000.txt`
+
+## 🔌 Extração Automática via Pen Drive
+
+### **Como Funciona:**
+
+1. **🔍 Monitoramento Contínuo**: A aplicação monitora continuamente a inserção de pen drives
+2. **🔌 Detecção Automática**: Quando um pen drive é inserido, é detectado automaticamente
+3. **📁 Montagem**: O pen drive é montado automaticamente no sistema
+4. **🧹 Limpeza**: Remove arquivos de log antigos do pen drive (se existirem)
+5. **📋 Cópia**: Apenas arquivos de log do DataLogger (`NI*.txt`) são copiados para o pen drive
+6. **💾 Sincronização**: Os dados são sincronizados para garantir integridade
+7. **⏏️ Ejeção**: O pen drive é desmontado automaticamente após a cópia
+8. **✅ Finalização**: Pen drive pode ser removido com segurança
+
+### **Processo Automático:**
+
+```
+🔌 Pen drive inserido
+    ↓
+🔍 Detectado automaticamente
+    ↓
+📁 Montagem automática
+    ↓
+🧹 Limpando arquivos antigos...
+    ↓
+📋 Copiando arquivos NI*.txt...
+    ↓
+💾 Sincronizando dados...
+    ↓
+⏏️ Desmontando pen drive
+    ↓
+✅ Extração concluída!
+💡 Pen drive pode ser removido
+```
+
+### **Mensagens na Tela:**
+
+```
+🔌 Pen drive detectado! Iniciando extração automática...
+📦 USB [20%]: Montando dispositivo USB...
+📦 USB [30%]: Limpando arquivos antigos...
+📦 USB [50%]: Copiando arquivos de log...
+📦 USB [80%]: Sincronizando dados... (3 arquivos copiados)
+📦 USB [90%]: Desmontando dispositivo USB...
+✅ USB: 3 arquivos de log extraídos com sucesso para USB
+✅ Extração concluída com sucesso!
+💡 Pen drive pode ser removido com segurança
+```
+
+### **Características:**
+
+- **✅ Plug & Play**: Inserir pen drive → extração automática
+- **✅ Sem intervenção**: Processo completamente automático
+- **✅ Seguro**: Desmontagem correta antes da remoção
+- **✅ Filtro inteligente**: Copia apenas arquivos de log do DataLogger (`NI*.txt`)
+- **✅ Limpeza automática**: Remove arquivos de log antigos do pen drive antes da cópia
+- **✅ Contagem de arquivos**: Mostra quantos arquivos foram copiados
+- **✅ Reutilizável**: Funciona com qualquer pen drive
+- **✅ Paralelo**: Não interfere no logging principal
+
+### **⚠️ Problema Resolvido: Arquivos Estranhos no Pen Drive**
+
+**Problema anterior:** O pen drive recebia arquivos desnecessários (LICENSE.txt, extension.js.LICENSE.txt, etc.)
+
+**✅ Solução implementada:**
+- **Filtro específico**: Copia apenas arquivos `NI*.txt` (logs do DataLogger)
+- **Limpeza prévia**: Remove arquivos de log antigos antes da nova cópia
+- **Resultado**: Pen drive contém apenas os arquivos de log relevantes
 
 ## 🤝 Contribuição
 

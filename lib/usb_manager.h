@@ -69,50 +69,21 @@ int mount_usb_device_auto(usb_device_info_t* device_info);
 int unmount_usb_device(const char* mount_point);
 
 /**
- * @brief Copia arquivo de log para dispositivo USB
- * @param usb_device Informações do dispositivo USB de destino
- * @param log_file_path Caminho do arquivo de log a ser copiado
+ * @brief Extração automática completa de todos os logs para USB
+ * Detecta USB, monta, copia todos os arquivos .txt, desmonta e ejeta
+ * @param source_dir Diretório com arquivos de log (ex: "/home/nova")
  * @param callbacks Callbacks para notificação de progresso (pode ser NULL)
  * @return 0 em caso de sucesso, código de erro negativo caso contrário
  */
-int copy_log_to_usb(const usb_device_info_t* usb_device, const char* log_file_path, const usb_callbacks_t* callbacks);
+int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* callbacks);
 
 /**
- * @brief Função principal para extrair logs para USB
- * Esta função detecta automaticamente um USB, monta se necessário e copia o arquivo
+ * @brief Monitora continuamente inserção de pen drives para extração automática
+ * @param source_dir Diretório com arquivos de log
+ * @param running Ponteiro para flag de controle do loop
  * @param callbacks Callbacks para notificação de progresso (pode ser NULL)
- * @return 0 em caso de sucesso, código de erro negativo caso contrário
  */
-int extract_log_to_usb(const usb_callbacks_t* callbacks);
-
-/**
- * @brief Verifica se há espaço suficiente no USB para o arquivo
- * @param mount_point Ponto de montagem do USB
- * @param file_size Tamanho do arquivo em bytes
- * @return true se há espaço suficiente, false caso contrário
- */
-bool check_usb_space(const char* mount_point, unsigned long file_size);
-
-/**
- * @brief Obtém informações de espaço livre no USB
- * @param mount_point Ponto de montagem do USB
- * @param free_space_mb Ponteiro para armazenar espaço livre em MB
- * @param total_space_mb Ponteiro para armazenar espaço total em MB
- * @return 0 em caso de sucesso, -1 em caso de erro
- */
-int get_usb_space_info(const char* mount_point, unsigned long* free_space_mb, unsigned long* total_space_mb);
-
-/**
- * @brief Limpa pontos de montagem órfãos e desmonta USBs não utilizados
- * @return Número de pontos de montagem processados
- */
-int cleanup_orphaned_mount_points(void);
-
-/**
- * @brief Força a desmontagem de todos os dispositivos USB montados
- * @return Número de dispositivos desmontados
- */
-int force_unmount_all_usb(void);
+void usb_monitor_and_extract(const char* source_dir, volatile bool* running, const usb_callbacks_t* callbacks);
 
 #ifdef __cplusplus
 }
