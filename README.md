@@ -320,23 +320,6 @@ Onde:
 - **✅ Reutilizável**: Funciona com qualquer pen drive
 - **✅ Paralelo**: Não interfere no logging principal
 
-### **⚠️ Problema Resolvido: Arquivos Estranhos no Pen Drive**
-
-**Problema anterior:** O pen drive recebia arquivos desnecessários (LICENSE.txt, extension.js.LICENSE.txt, etc.)
-
-**✅ Solução implementada:**
-- **Filtro específico**: Copia apenas arquivos `NI*.txt` (logs do DataLogger)
-- **Limpeza prévia**: Remove arquivos de log antigos antes da nova cópia
-- **Resultado**: Pen drive contém apenas os arquivos de log relevantes
-
-## 🤝 Contribuição
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
-
 ## 📄 Licença
 
 Este projeto é propriedade da Nova Instruments.
