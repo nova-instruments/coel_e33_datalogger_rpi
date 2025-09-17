@@ -8,6 +8,7 @@ set(DEPS_DIR "${CMAKE_SOURCE_DIR}/deps")
 set(LIBMODBUS_DIR "${DEPS_DIR}/libmodbus/install")
 set(LIBGPIOD_DIR "${DEPS_DIR}/libgpiod/install")
 set(LIBUDEV_DIR "${DEPS_DIR}/eudev/install")
+set(SQLITE3_DIR "${DEPS_DIR}/sqlite3/install")
 
 # Verificar se as dependências existem (apenas warning, não erro fatal)
 if(NOT EXISTS "${LIBMODBUS_DIR}/lib/libmodbus.so")
@@ -25,11 +26,17 @@ if(NOT EXISTS "${LIBUDEV_DIR}/lib/libudev.a")
     message(WARNING "Execute: ./scripts/build_libudev_arm.sh")
 endif()
 
+if(NOT EXISTS "${SQLITE3_DIR}/lib/libsqlite3.so")
+    message(WARNING "SQLite3 não encontrada em ${SQLITE3_DIR}/lib/")
+    message(WARNING "Execute: ./scripts/build_sqlite3_arm.sh")
+endif()
+
 # Include directories
 include_directories(
     ${LIBMODBUS_DIR}/include
     ${LIBGPIOD_DIR}/include
     ${LIBUDEV_DIR}/include
+    ${SQLITE3_DIR}/include
     ${CMAKE_SOURCE_DIR}/lib
 )
 
@@ -38,6 +45,7 @@ link_directories(
     ${LIBMODBUS_DIR}/lib
     ${LIBGPIOD_DIR}/lib
     ${LIBUDEV_DIR}/lib
+    ${SQLITE3_DIR}/lib
 )
 
 # Biblioteca Modbus
@@ -77,7 +85,10 @@ target_link_libraries(app
     modbus
     gpiod
     udev
+    sqlite3
     pthread
+    dl
+    m
 )
 
 # Configurar diretório de saída

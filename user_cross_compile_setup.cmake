@@ -19,6 +19,7 @@ set(CMAKE_FIND_ROOT_PATH
     ${CMAKE_SOURCE_DIR}/deps/libmodbus/install
     ${CMAKE_SOURCE_DIR}/deps/libgpiod/install
     ${CMAKE_SOURCE_DIR}/deps/eudev/install
+    ${CMAKE_SOURCE_DIR}/deps/sqlite3/install
 )
 
 # Search for programs in the build host directories

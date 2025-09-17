@@ -11,7 +11,7 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 - 🔌 **Comunicação Modbus RTU** via porta serial (`/dev/serial0`)
 - 🎯 **Cross-compilation** para ARM (Raspberry Pi zero 2W/3)
 - 📊 **Leitura de registradores** 0x200 (Temperatura) e 0x20D (Porta)
-- 📝 **DataLogger integrado** com formato TXT personalizado
+- 📝 **DataLogger duplo** com formatos TXT e SQLite
 - 🕐 **Sincronização com RTC** (DS3231) para timestamps precisos
 - 🔄 **Duplo modo de logging**: periódico (5 min) + imediato (mudança de porta)
 - 🚪 **Detecção de mudança de estado** da porta com registro instantâneo
@@ -211,10 +211,15 @@ make check
 ### DataLogger
 - **Nome do dispositivo**: Configurável em `src/main.c` (`DEVICE_NAME`)
 - **Diretório de logs**: `/home/nova/`
-- **Formato do arquivo**: `NOME_YYYYMMDD_HHMMSS.txt`
+- **Formatos de arquivo**:
+  - **TXT**: `NOME_YYYYMMDD_HHMMSS.txt` (formato brasileiro)
+  - **SQLite**: `NOME_YYYYMMDD_HHMMSS.db` (banco estruturado)
 - **Modo de logging**:
   - **Periódico**: A cada 5 minutos (300 segundos)
   - **Imediato**: Quando detecta mudança de estado da porta
+- **Estrutura do banco SQLite**:
+  - **Tabela DataGrpData**: IndexID, CollectTime, Tprincipal (2 decimais), Porta
+  - **Tabela DBInfo**: Metadados do banco (versão, IDs, timestamps)
 - **Frequência de verificação**: A cada 2 segundos (para detectar mudanças)
 - **Fonte de tempo**: RTC (DS3231) com fallback para sistema
 
@@ -300,7 +305,7 @@ GND    (Pino 20) ──── Negativo (-)
 2. **🔌 Detecção Automática**: Quando um pen drive é inserido, é detectado automaticamente
 3. **📁 Montagem**: O pen drive é montado automaticamente no sistema
 4. **🧹 Limpeza**: Remove arquivos de log antigos do pen drive (se existirem)
-5. **📋 Cópia**: Apenas arquivos de log do DataLogger (`NI*.txt`) são copiados para o pen drive
+5. **📋 Cópia**: Apenas bancos de dados do DataLogger (`NI*.db`) são copiados para o pen drive
 6. **💾 Sincronização**: Os dados são sincronizados para garantir integridade
 7. **⏏️ Ejeção**: O pen drive é desmontado automaticamente após a cópia
 8. **🔊 Sinalização**: Buzzer emite 3 beeps curtos para confirmar sucesso
@@ -335,10 +340,10 @@ GND    (Pino 20) ──── Negativo (-)
 🔌 Pen drive detectado! Iniciando extração automática...
 📦 USB [20%]: Montando dispositivo USB...
 📦 USB [30%]: Limpando arquivos antigos...
-📦 USB [50%]: Copiando arquivos de log...
-📦 USB [80%]: Sincronizando dados... (3 arquivos copiados)
+📦 USB [50%]: Copiando bancos de dados...
+📦 USB [80%]: Sincronizando dados... (3 bancos copiados)
 📦 USB [90%]: Desmontando dispositivo USB...
-✅ USB: 3 arquivos de log extraídos com sucesso para USB
+✅ USB: 3 bancos de dados extraídos com sucesso para USB
 🔊 Sinalizando extração concluída...
 🔊 Sinalização sonora concluída
 ✅ Extração concluída com sucesso!
@@ -350,9 +355,9 @@ GND    (Pino 20) ──── Negativo (-)
 - **✅ Plug & Play**: Inserir pen drive → extração automática
 - **✅ Sem intervenção**: Processo completamente automático
 - **✅ Seguro**: Desmontagem correta antes da remoção
-- **✅ Filtro inteligente**: Copia apenas arquivos de log do DataLogger (`NI*.txt`)
-- **✅ Limpeza automática**: Remove arquivos de log antigos do pen drive antes da cópia
-- **✅ Contagem de arquivos**: Mostra quantos arquivos foram copiados
+- **✅ Filtro inteligente**: Copia apenas bancos de dados do DataLogger (`NI*.db`)
+- **✅ Limpeza automática**: Remove bancos antigos do pen drive antes da cópia
+- **✅ Contagem de arquivos**: Mostra quantos bancos foram copiados
 - **✅ Sinalização sonora**: Buzzer confirma sucesso com 3 beeps (GPIO23)
 - **✅ Reutilizável**: Funciona com qualquer pen drive
 - **✅ Paralelo**: Não interfere no logging principal

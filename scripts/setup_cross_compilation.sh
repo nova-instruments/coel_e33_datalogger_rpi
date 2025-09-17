@@ -171,6 +171,22 @@ else
     exit 1
 fi
 
+# Compilar SQLite3 para ARM
+log_info "Compilando SQLite3 para ARM..."
+if [ -f "$SCRIPT_DIR/build_sqlite3_arm.sh" ]; then
+    chmod +x "$SCRIPT_DIR/build_sqlite3_arm.sh"
+    "$SCRIPT_DIR/build_sqlite3_arm.sh"
+    if [ $? -eq 0 ]; then
+        log_success "SQLite3 compilado com sucesso!"
+    else
+        log_error "Falha na compilação do SQLite3!"
+        exit 1
+    fi
+else
+    log_error "Script build_sqlite3_arm.sh não encontrado!"
+    exit 1
+fi
+
 # Verificar se as bibliotecas foram compiladas corretamente
 log_info "Verificando bibliotecas compiladas..."
 
@@ -199,6 +215,16 @@ if [ -f "$LIBUDEV_PATH" ]; then
     file "$LIBUDEV_PATH" | grep -q "ARM" && log_success "libudev é ARM" || log_warning "libudev pode não ser ARM"
 else
     log_error "libudev não encontrada em $LIBUDEV_PATH"
+    exit 1
+fi
+
+# Verificar SQLite3
+SQLITE3_PATH="$PROJECT_ROOT/deps/sqlite3/install/lib/libsqlite3.so"
+if [ -f "$SQLITE3_PATH" ]; then
+    log_success "SQLite3 encontrado: $SQLITE3_PATH"
+    file "$SQLITE3_PATH" | grep -q "ARM" && log_success "SQLite3 é ARM" || log_warning "SQLite3 pode não ser ARM"
+else
+    log_error "SQLite3 não encontrado em $SQLITE3_PATH"
     exit 1
 fi
 
@@ -263,6 +289,7 @@ log_info "✅ gperf instalado (necessário para eudev)"
 log_info "✅ libmodbus compilada para ARM"
 log_info "✅ libgpiod 1.6.3 compilada para ARM"
 log_info "✅ libudev (eudev) compilada para ARM"
+log_info "✅ SQLite3 compilado para ARM"
 log_info "✅ CMakeLists.txt verificado"
 log_info "✅ CMake configurado com toolchain ARM"
 log_info "✅ Projeto modbus_reader compila corretamente"

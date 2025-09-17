@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <stdio.h>
+#include <sqlite3.h>
 #include "modbus.h"
 
 // Configurações do DataLogger
@@ -21,13 +22,15 @@
 // Estrutura para configuração do datalogger
 typedef struct {
     char device_name[32];       // Nome do dispositivo (ex: "NI00002")
-    char log_file_path[DATALOGGER_MAX_PATH];  // Caminho completo do arquivo de log
+    char log_file_path[DATALOGGER_MAX_PATH];  // Caminho completo do arquivo de log TXT
+    char db_file_path[DATALOGGER_MAX_PATH];   // Caminho completo do arquivo de banco SQLite
     uint32_t record_counter;    // Contador de registros
     bool initialized;           // Flag de inicialização
-    FILE* log_file;            // Handle do arquivo de log
+    FILE* log_file;            // Handle do arquivo de log TXT
+    sqlite3* db;               // Handle do banco de dados SQLite
 } datalogger_context_t;
 
-// Estrutura para um registro de dados
+// Estrutura para um registro de dados (formato TXT)
 typedef struct {
     uint32_t record_number;     // Número do registro (R)
     struct tm timestamp;        // Data e hora
@@ -36,6 +39,28 @@ typedef struct {
     bool temp_valid;           // Flag indicando se temperatura é válida
     bool door_valid;           // Flag indicando se status da porta é válido
 } datalogger_record_t;
+
+// Estrutura para registro no banco SQLite (sem coluna Degelo)
+typedef struct {
+    int IndexID;               // Chave primária (auto-incremento)
+    long long CollectTime;     // Timestamp em milissegundos
+    float Tprincipal;          // Temperatura principal em °C (2 casas decimais)
+    int Porta;                 // Status da porta (0=fechada, 1=aberta)
+} datalogger_db_record_t;
+
+// Estrutura para informações do banco (tabela DBInfo)
+typedef struct {
+    int version;               // Versão do banco
+    int MaxID;                 // Maior ID registrado
+    int MinID;                 // Menor ID registrado
+    long long StartTime;       // Timestamp de início
+    long long EndTime;         // Timestamp de fim
+    int Value0;                // Valor reservado 0
+    int Value1;                // Valor reservado 1
+    int Value2;                // Valor reservado 2
+    int Value3;                // Valor reservado 3
+    int Value4;                // Valor reservado 4
+} datalogger_db_info_t;
 
 /**
  * @brief Inicializa o sistema de datalogger
@@ -111,5 +136,50 @@ bool datalogger_get_log_info(datalogger_context_t* ctx, long* file_size, uint32_
  * @param ctx Contexto do datalogger
  */
 void datalogger_print_stats(datalogger_context_t* ctx);
+
+/**
+ * @brief Inicializa o banco de dados SQLite
+ * @param ctx Contexto do datalogger
+ * @return true se inicialização foi bem-sucedida, false caso contrário
+ */
+bool datalogger_init_database(datalogger_context_t* ctx);
+
+/**
+ * @brief Cria as tabelas do banco de dados
+ * @param ctx Contexto do datalogger
+ * @return true se criação foi bem-sucedida, false caso contrário
+ */
+bool datalogger_create_tables(datalogger_context_t* ctx);
+
+/**
+ * @brief Converte registro TXT para registro do banco
+ * @param txt_record Registro no formato TXT
+ * @param db_record Registro no formato do banco (a ser preenchido)
+ * @return true se conversão foi bem-sucedida, false caso contrário
+ */
+bool datalogger_convert_to_db_record(const datalogger_record_t* txt_record,
+                                    datalogger_db_record_t* db_record);
+
+/**
+ * @brief Insere registro no banco de dados
+ * @param ctx Contexto do datalogger
+ * @param db_record Registro a ser inserido
+ * @return true se inserção foi bem-sucedida, false caso contrário
+ */
+bool datalogger_insert_db_record(datalogger_context_t* ctx,
+                                const datalogger_db_record_t* db_record);
+
+/**
+ * @brief Atualiza informações do banco (tabela DBInfo)
+ * @param ctx Contexto do datalogger
+ * @return true se atualização foi bem-sucedida, false caso contrário
+ */
+bool datalogger_update_db_info(datalogger_context_t* ctx);
+
+/**
+ * @brief Finaliza o banco de dados SQLite
+ * @param ctx Contexto do datalogger
+ */
+void datalogger_cleanup_database(datalogger_context_t* ctx);
 
 #endif // DATALOGGER_H

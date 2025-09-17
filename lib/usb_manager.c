@@ -816,21 +816,21 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
         callbacks->on_progress(25, "Limpando arquivos antigos do pen drive...");
     }
 
-    // Limpar arquivos de log antigos do pen drive (apenas NI*.txt)
+    // Limpar arquivos de banco antigos do pen drive (apenas NI*.db)
     char cleanup_command[1024];
     snprintf(cleanup_command, sizeof(cleanup_command),
-             "find \"%s\" -name \"NI*.txt\" -type f -delete 2>/dev/null",
+             "find \"%s\" -name \"NI*.db\" -type f -delete 2>/dev/null",
              usb_device->mount_point);
     system(cleanup_command);
 
     if (callbacks && callbacks->on_progress) {
-        callbacks->on_progress(30, "Copiando arquivos de log...");
+        callbacks->on_progress(30, "Copiando bancos de dados...");
     }
 
-    // Copiar apenas arquivos de log do DataLogger (padrão: NI*.txt)
+    // Copiar apenas arquivos de banco do DataLogger (padrão: NI*.db)
     char command[1024];
     snprintf(command, sizeof(command),
-             "find \"%s\" -name \"NI*.txt\" -type f -exec cp {} \"%s/\" \\; 2>/dev/null",
+             "find \"%s\" -name \"NI*.db\" -type f -exec cp {} \"%s/\" \\; 2>/dev/null",
              source_dir, usb_device->mount_point);
 
     int copy_result = system(command);
@@ -838,7 +838,7 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
     // Verificar quantos arquivos foram copiados
     char count_command[1024];
     snprintf(count_command, sizeof(count_command),
-             "find \"%s\" -name \"NI*.txt\" -type f | wc -l",
+             "find \"%s\" -name \"NI*.db\" -type f | wc -l",
              usb_device->mount_point);
 
     FILE* count_fp = popen(count_command, "r");
@@ -851,7 +851,7 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
     if (callbacks && callbacks->on_progress) {
         char progress_msg[256];
         snprintf(progress_msg, sizeof(progress_msg),
-                 "Sincronizando dados... (%d arquivos copiados)", file_count);
+                 "Sincronizando dados... (%d bancos copiados)", file_count);
         callbacks->on_progress(80, progress_msg);
     }
 
@@ -874,7 +874,7 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
         if (callbacks && callbacks->on_complete) {
             char complete_msg[256];
             snprintf(complete_msg, sizeof(complete_msg),
-                     "%d arquivos de log extraídos com sucesso para USB", file_count);
+                     "%d bancos de dados extraídos com sucesso para USB", file_count);
             callbacks->on_complete(USB_SUCCESS, complete_msg);
         }
 

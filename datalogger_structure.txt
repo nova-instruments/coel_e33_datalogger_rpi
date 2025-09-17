@@ -1,0 +1,63 @@
+ESTRUTURA DO BANCO DE DADOS DATALOGGER
+=====================================
+
+TABELA PRINCIPAL: DataGrpData
+-----------------------------
+IndexID      - INTEGER (Chave primária, auto-incremento)
+CollectTime  - INTEGER (Timestamp em milissegundos)
+Tprincipal   - REAL    (Temperatura principal)
+Degelo       - REAL    (Temperatura de degelo)
+Setpoint     - REAL    (Valor de setpoint)
+Porta        - INTEGER (Status da porta: 0=fechada, 1=aberta)
+
+TABELA DE INFORMAÇÕES: DBInfo
+-----------------------------
+version      - INTEGER (Versão do banco)
+MaxID        - INTEGER (Maior ID registrado)
+MinID        - INTEGER (Menor ID registrado)
+StartTime    - INTEGER (Timestamp de início)
+EndTime      - INTEGER (Timestamp de fim)
+Value0       - INTEGER (Valor reservado 0)
+Value1       - INTEGER (Valor reservado 1)
+Value2       - INTEGER (Valor reservado 2)
+Value3       - INTEGER (Valor reservado 3)
+Value4       - INTEGER (Valor reservado 4)
+
+EXEMPLO DE DADOS:
+-----------------
+IndexID | CollectTime   | Tprincipal | Degelo | Setpoint | Porta
+--------|---------------|------------|--------|----------|------
+1       | 1757003321324 | 5.2        | 6.8    | -9.0     | 1
+2       | 1757003743103 | 5.4        | -1.9   | 4.5      | 0
+3       | 1757004103109 | 4.5        | -3.2   | 4.5      | 0
+
+OBSERVAÇÕES:
+------------
+- CollectTime está em formato timestamp Unix (milissegundos)
+- Temperaturas em graus Celsius (valores decimais)
+- Porta: 0 = fechada, 1 = aberta
+- IndexID é sequencial e único
+
+ESTRUTURA EM C (SUGESTÃO):
+--------------------------
+typedef struct {
+    int IndexID;
+    long long CollectTime;
+    float Tprincipal;
+    float Degelo;
+    float Setpoint;
+    int Porta;
+} DataloggerRecord;
+
+typedef struct {
+    int version;
+    int MaxID;
+    int MinID;
+    long long StartTime;
+    long long EndTime;
+    int Value0;
+    int Value1;
+    int Value2;
+    int Value3;
+    int Value4;
+} DBInfo;

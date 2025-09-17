@@ -96,6 +96,7 @@ info:
 	@echo "  • libmodbus $(shell [ -f deps/libmodbus/install/lib/libmodbus.so ] && echo '✅' || echo '❌')"
 	@echo "  • libgpiod  $(shell [ -f deps/libgpiod/install/lib/libgpiod.so ] && echo '✅' || echo '❌')"
 	@echo "  • libudev   $(shell [ -f deps/eudev/install/lib/libudev.a ] && echo '✅' || echo '❌')"
+	@echo "  • sqlite3   $(shell [ -f deps/sqlite3/install/lib/libsqlite3.so ] && echo '✅' || echo '❌')"
 	@echo ""
 	@echo "🎯 Alvo: Raspberry Pi 3 (ARM Cortex-A53)"
 	@echo "📡 Protocolo: Modbus RTU via RS-485"
