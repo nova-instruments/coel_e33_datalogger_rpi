@@ -444,7 +444,7 @@ bool datalogger_insert_db_record(datalogger_context_t* ctx,
 
     const char* sql =
         "INSERT INTO DataGrpData (CollectTime, Tprincipal, Porta) "
-        "VALUES (?, ?, ?);";
+        "VALUES (?, ROUND(?, 2), ?);";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(ctx->db, sql, -1, &stmt, NULL);
