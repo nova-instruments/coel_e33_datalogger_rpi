@@ -10,17 +10,24 @@
 #include <libudev.h>
 #include <mntent.h>
 #include <sys/mount.h>
+#include <gpiod.h>
 
 // Definir MNT_FORCE se não estiver definido
 #ifndef MNT_FORCE
 #define MNT_FORCE 1
 #endif
 
+// Configurações do buzzer
+#define BUZZER_GPIO 23
+#define GPIO_CHIP_NAME "gpiochip0"
+
 // Estrutura usb_device_info_t definida no header
 
 // Variáveis globais
 static struct udev *udev_context = NULL;
 static usb_device_info_t current_usb = {0};
+static struct gpiod_chip *gpio_chip = NULL;
+static struct gpiod_line *buzzer_line = NULL;
 
 // Função para inicializar o contexto udev
 int usb_manager_init(void) {
@@ -35,12 +42,20 @@ int usb_manager_init(void) {
         return -1;
     }
 
+    // Inicializar buzzer
+    if (buzzer_init() != 0) {
+        printf("⚠️  Aviso: Falha ao inicializar buzzer (continuando sem sinalização sonora)\n");
+    }
+
     printf("USB Manager inicializado com sucesso\n");
     return 0;
 }
 
 // Função para finalizar o contexto udev
 void usb_manager_cleanup(void) {
+    // Finalizar buzzer
+    buzzer_cleanup();
+
     if (udev_context) {
         udev_unref(udev_context);
         udev_context = NULL;
@@ -862,6 +877,10 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
                      "%d arquivos de log extraídos com sucesso para USB", file_count);
             callbacks->on_complete(USB_SUCCESS, complete_msg);
         }
+
+        // Sinalizar sucesso com buzzer
+        buzzer_signal_extraction_complete();
+
         return USB_SUCCESS;
     } else {
         if (callbacks && callbacks->on_error) {
@@ -930,4 +949,88 @@ void usb_monitor_and_extract(const char* source_dir, volatile bool* running, con
     }
 
     printf("🛑 Monitoramento de pen drives finalizado\n");
+}
+
+/**
+ * @brief Inicializa o buzzer no GPIO23 usando libgpiod
+ */
+int buzzer_init(void) {
+    if (gpio_chip && buzzer_line) {
+        printf("Buzzer já inicializado\n");
+        return 0;
+    }
+
+    // Abrir chip GPIO
+    gpio_chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
+    if (!gpio_chip) {
+        printf("Erro ao abrir chip GPIO: %s\n", GPIO_CHIP_NAME);
+        return -1;
+    }
+
+    // Obter linha do GPIO23
+    buzzer_line = gpiod_chip_get_line(gpio_chip, BUZZER_GPIO);
+    if (!buzzer_line) {
+        printf("Erro ao obter linha GPIO %d\n", BUZZER_GPIO);
+        gpiod_chip_close(gpio_chip);
+        gpio_chip = NULL;
+        return -1;
+    }
+
+    // Configurar linha como saída
+    int ret = gpiod_line_request_output(buzzer_line, "buzzer", 0);
+    if (ret < 0) {
+        printf("Erro ao configurar GPIO %d como saída\n", BUZZER_GPIO);
+        gpiod_chip_close(gpio_chip);
+        gpio_chip = NULL;
+        buzzer_line = NULL;
+        return -1;
+    }
+
+    printf("🔊 Buzzer inicializado no GPIO %d\n", BUZZER_GPIO);
+    return 0;
+}
+
+/**
+ * @brief Finaliza o buzzer e libera recursos
+ */
+void buzzer_cleanup(void) {
+    if (buzzer_line) {
+        // Garantir que o buzzer está desligado
+        gpiod_line_set_value(buzzer_line, 0);
+        gpiod_line_release(buzzer_line);
+        buzzer_line = NULL;
+    }
+
+    if (gpio_chip) {
+        gpiod_chip_close(gpio_chip);
+        gpio_chip = NULL;
+    }
+
+    printf("🔊 Buzzer finalizado\n");
+}
+
+/**
+ * @brief Toca o buzzer para sinalizar sucesso na extração
+ * Executa sequência de 3 beeps curtos
+ */
+void buzzer_signal_extraction_complete(void) {
+    if (!buzzer_line) {
+        printf("⚠️  Buzzer não inicializado, pulando sinalização sonora\n");
+        return;
+    }
+
+    printf("🔊 Sinalizando extração concluída...\n");
+
+    // Sequência de 3 beeps curtos
+    for (int i = 0; i < 3; i++) {
+        // Ligar buzzer
+        gpiod_line_set_value(buzzer_line, 1);
+        usleep(200000); // 200ms ligado
+
+        // Desligar buzzer
+        gpiod_line_set_value(buzzer_line, 0);
+        usleep(200000); // 200ms desligado
+    }
+
+    printf("🔊 Sinalização sonora concluída\n");
 }

@@ -16,6 +16,7 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 - 🔄 **Duplo modo de logging**: periódico (5 min) + imediato (mudança de porta)
 - 🚪 **Detecção de mudança de estado** da porta com registro instantâneo
 - 🔌 **Extração automática via pen drive** com monitoramento contínuo
+- 🔊 **Sinalização sonora** via buzzer no GPIO23 ao finalizar extração
 - 📱 **Deploy automatizado** via SSH
 - 💾 **Armazenamento local** em `/home/nova/`
 
@@ -261,6 +262,36 @@ Onde:
 #### 📁 Exemplo de Arquivo Gerado
 **Arquivo:** `/home/nova/NI00002_20240915_160000.txt`
 
+## 🔊 Sinalização Sonora (Buzzer)
+
+### **Configuração do Hardware:**
+- **GPIO**: 23 (pino físico 16)
+- **Biblioteca**: libgpiod
+- **Tipo**: Buzzer ativo (3.3V/5V)
+
+### **Funcionamento:**
+- **Inicialização**: Automática junto com o USB Manager
+- **Acionamento**: Apenas ao finalizar extração com sucesso
+- **Sequência**: 3 beeps curtos (200ms ligado + 200ms desligado)
+- **Finalização**: Automática ao encerrar aplicação
+
+### **Conexão Sugerida:**
+```
+Raspberry Pi          Buzzer
+GPIO23 (Pino 16) ──── Positivo (+)
+GND    (Pino 20) ──── Negativo (-)
+```
+
+### **Mensagens:**
+```
+🔊 Buzzer inicializado no GPIO 23
+🔊 Sinalizando extração concluída...
+🔊 Sinalização sonora concluída
+🔊 Buzzer finalizado
+```
+
+**Nota:** Se o buzzer não puder ser inicializado, a aplicação continua funcionando normalmente sem sinalização sonora.
+
 ## 🔌 Extração Automática via Pen Drive
 
 ### **Como Funciona:**
@@ -272,7 +303,8 @@ Onde:
 5. **📋 Cópia**: Apenas arquivos de log do DataLogger (`NI*.txt`) são copiados para o pen drive
 6. **💾 Sincronização**: Os dados são sincronizados para garantir integridade
 7. **⏏️ Ejeção**: O pen drive é desmontado automaticamente após a cópia
-8. **✅ Finalização**: Pen drive pode ser removido com segurança
+8. **🔊 Sinalização**: Buzzer emite 3 beeps curtos para confirmar sucesso
+9. **✅ Finalização**: Pen drive pode ser removido com segurança
 
 ### **Processo Automático:**
 
@@ -291,6 +323,8 @@ Onde:
     ↓
 ⏏️ Desmontando pen drive
     ↓
+🔊 Buzzer: 3 beeps de sucesso
+    ↓
 ✅ Extração concluída!
 💡 Pen drive pode ser removido
 ```
@@ -305,6 +339,8 @@ Onde:
 📦 USB [80%]: Sincronizando dados... (3 arquivos copiados)
 📦 USB [90%]: Desmontando dispositivo USB...
 ✅ USB: 3 arquivos de log extraídos com sucesso para USB
+🔊 Sinalizando extração concluída...
+🔊 Sinalização sonora concluída
 ✅ Extração concluída com sucesso!
 💡 Pen drive pode ser removido com segurança
 ```
@@ -317,6 +353,7 @@ Onde:
 - **✅ Filtro inteligente**: Copia apenas arquivos de log do DataLogger (`NI*.txt`)
 - **✅ Limpeza automática**: Remove arquivos de log antigos do pen drive antes da cópia
 - **✅ Contagem de arquivos**: Mostra quantos arquivos foram copiados
+- **✅ Sinalização sonora**: Buzzer confirma sucesso com 3 beeps (GPIO23)
 - **✅ Reutilizável**: Funciona com qualquer pen drive
 - **✅ Paralelo**: Não interfere no logging principal
 

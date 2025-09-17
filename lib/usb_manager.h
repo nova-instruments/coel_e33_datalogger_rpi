@@ -85,6 +85,23 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
  */
 void usb_monitor_and_extract(const char* source_dir, volatile bool* running, const usb_callbacks_t* callbacks);
 
+/**
+ * @brief Inicializa o buzzer no GPIO23
+ * @return 0 em caso de sucesso, -1 em caso de erro
+ */
+int buzzer_init(void);
+
+/**
+ * @brief Finaliza o buzzer e libera recursos
+ */
+void buzzer_cleanup(void);
+
+/**
+ * @brief Toca o buzzer para sinalizar sucesso na extração
+ * Executa sequência de 3 beeps curtos
+ */
+void buzzer_signal_extraction_complete(void);
+
 #ifdef __cplusplus
 }
 #endif
