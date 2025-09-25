@@ -6,6 +6,7 @@
 
 # Diretório de dependências compiladas (libmodbus, libgpiod, eudev)
 deps/
+deps-armv6/
 
 # Diretórios de build
 build/

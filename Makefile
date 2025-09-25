@@ -1,10 +1,11 @@
 # Makefile para o projeto Modbus Reader
 # Facilita o uso dos scripts de build e deploy
 
-.PHONY: help setup build clean check deploy test
+.PHONY: help setup build clean check deploy test armv6 setup-armv6 build-armv6 clean-armv6 deploy-armv6 info-armv6
 
 # Configurações
 BUILD_DIR = build-rpi
+BUILD_DIR_ARMV6 = build-rpi1
 RPI_IP ?= 192.168.3.22
 RPI_USER ?= nova
 
@@ -27,7 +28,14 @@ help:
 	@echo "🧪 Testes:"
 	@echo "  make test      - Executa verificações básicas"
 	@echo ""
-	@echo "📖 Informações:"
+	@echo "� ARMv6 (Raspberry Pi 1):"
+	@echo "  make setup-armv6  - Configura ambiente para ARMv6"
+	@echo "  make build-armv6  - Compila para ARMv6 (Raspberry Pi 1)"
+	@echo "  make clean-armv6  - Limpa build ARMv6"
+	@echo "  make deploy-armv6 - Deploy para Raspberry Pi 1"
+	@echo "  make info-armv6   - Informações do build ARMv6"
+	@echo ""
+	@echo "�📖 Informações:"
 	@echo "  make info      - Mostra informações do projeto"
 
 setup:
@@ -108,9 +116,76 @@ info:
 		echo "📦 Executável: ❌ Não compilado"; \
 	fi
 
+# ========================================
+# Comandos para ARMv6 (Raspberry Pi 1)
+# ========================================
+
+setup-armv6:
+	@echo "🔧 Configurando ambiente de cross-compilation para ARMv6..."
+	@chmod +x scripts/setup_armv6.sh
+	@./scripts/setup_armv6.sh
+
+build-armv6:
+	@echo "🔨 Compilando projeto para ARMv6..."
+	@if [ ! -d "$(BUILD_DIR_ARMV6)" ]; then \
+		echo "⚠️  Diretório de build ARMv6 não existe. Execute 'make setup-armv6' primeiro."; \
+		exit 1; \
+	fi
+	@make -C $(BUILD_DIR_ARMV6) -j$$(nproc)
+	@echo "✅ Compilação ARMv6 concluída!"
+	@echo "📁 Executável: $(BUILD_DIR_ARMV6)/bin/app"
+
+clean-armv6:
+	@echo "🧹 Limpando arquivos de build ARMv6..."
+	@if [ -d "$(BUILD_DIR_ARMV6)" ]; then \
+		rm -rf $(BUILD_DIR_ARMV6); \
+		echo "✅ Diretório $(BUILD_DIR_ARMV6) removido"; \
+	else \
+		echo "ℹ️  Nada para limpar"; \
+	fi
+	@if [ -d "deps-armv6" ]; then \
+		echo "🗑️  Removendo dependências ARMv6..."; \
+		rm -rf deps-armv6; \
+		echo "✅ Dependências ARMv6 removidas"; \
+	fi
+
+deploy-armv6:
+	@echo "🚀 Fazendo deploy para Raspberry Pi 1 (ARMv6)..."
+	@if [ ! -f "$(BUILD_DIR_ARMV6)/bin/app" ]; then \
+		echo "❌ Executável ARMv6 não encontrado. Execute 'make build-armv6' primeiro."; \
+		exit 1; \
+	fi
+	@echo "📤 Enviando executável ARMv6 estático para $(RPI_USER)@$(RPI_IP)..."
+	@scp $(BUILD_DIR_ARMV6)/bin/app $(RPI_USER)@$(RPI_IP):~/app_armv6
+	@echo "✅ Deploy ARMv6 concluído!"
+	@echo "🎯 Para executar: sudo ./app_armv6"
+
+info-armv6:
+	@echo "=== Informações do Projeto Modbus Reader ARMv6 ==="
+	@echo ""
+	@echo "🔧 Dependências ARMv6:"
+	@echo "  • libmodbus $(shell [ -f deps-armv6/libmodbus/install/lib/libmodbus.so ] && echo '✅' || echo '❌')"
+	@echo "  • libgpiod  $(shell [ -f deps-armv6/libgpiod/install/lib/libgpiod.so ] && echo '✅' || echo '❌')"
+	@echo "  • libudev   $(shell [ -f deps-armv6/eudev/install/lib/libudev.a ] && echo '✅' || echo '❌')"
+	@echo "  • sqlite3   $(shell [ -f deps-armv6/sqlite3/install/lib/libsqlite3.so ] && echo '✅' || echo '❌')"
+	@echo ""
+	@echo "🎯 Alvo: Raspberry Pi 1 (ARMv6)"
+	@echo "📡 Protocolo: Modbus RTU via RS-485"
+	@echo "🔧 Compilação: Estática (sem dependências externas)"
+	@echo ""
+	@if [ -f "$(BUILD_DIR_ARMV6)/bin/app" ]; then \
+		echo "📦 Executável ARMv6: ✅ $(BUILD_DIR_ARMV6)/bin/app"; \
+		echo "📏 Tamanho: $$(ls -lh $(BUILD_DIR_ARMV6)/bin/app | awk '{print $$5}')"; \
+		echo "🏗️  Arquitetura: $$(file $(BUILD_DIR_ARMV6)/bin/app | cut -d: -f2)"; \
+		echo "🔗 Linking: $$(file $(BUILD_DIR_ARMV6)/bin/app | grep -o 'statically linked' || echo 'dinamicamente linkado')"; \
+	else \
+		echo "📦 Executável ARMv6: ❌ Não compilado"; \
+	fi
+
 # Atalhos convenientes
 configure: setup
 compile: build
 install: deploy
 status: info
 verify: check
+armv6: setup-armv6 build-armv6

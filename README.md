@@ -9,7 +9,7 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 ### Características Principais
 
 - 🔌 **Comunicação Modbus RTU** via porta serial (`/dev/serial0`)
-- 🎯 **Cross-compilation** para ARM (Raspberry Pi zero 2W/3)
+- 🎯 **Cross-compilation** para ARM (Raspberry Pi 1/Zero 2W/3)
 - 📊 **Leitura de registradores** 0x200 (Temperatura) e 0x20D (Porta)
 - 📝 **DataLogger duplo** com formatos TXT e SQLite
 - 🕐 **Sincronização com RTC** (DS3231) para timestamps precisos
@@ -19,6 +19,31 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 - 🔊 **Sinalização sonora** via buzzer no GPIO23 ao finalizar extração
 - 📱 **Deploy automatizado** via SSH
 - 💾 **Armazenamento local** em `/home/nova/`
+
+## 🎯 Compatibilidade
+
+| Modelo Raspberry Pi | Arquitetura | Status | Comando |
+|---------------------|-------------|--------|---------|
+| **Raspberry Pi 1 A/B** | ARMv6 | ✅ Suportado | `make setup-armv6` |
+| **Raspberry Pi Zero** | ARMv6 | ✅ Suportado | `make setup-armv6` |
+| **Raspberry Pi 2** | ARMv7 | ✅ Suportado | `make setup` |
+| **Raspberry Pi 3** | ARMv7 | ✅ Suportado | `make setup` |
+| **Raspberry Pi Zero 2W** | ARMv7 | ✅ Suportado | `make setup` |
+| **Raspberry Pi 4** | ARMv8 | ⚠️ Não testado | `make setup` |
+
+**Nota:** O problema `libmodbus.so.5: cannot open shared object file` em Raspberry Pi 1 foi resolvido com **compilação estática** específica para ARMv6 usando toolchain `arm-linux-gnueabi` (soft-float).
+
+### 🔧 Diferenças Técnicas entre Arquiteturas
+
+| Aspecto | ARMv6 (Pi 1/Zero) | ARMv7 (Pi 2/3/Zero 2W) |
+|---------|-------------------|-------------------------|
+| **Toolchain** | `arm-linux-gnueabi` | `arm-linux-gnueabihf` |
+| **ABI** | Soft-float | Hard-float |
+| **Compilação** | Estática (`-static`) | Dinâmica |
+| **Flags** | `-march=armv6 -mfloat-abi=soft` | `-mcpu=cortex-a53 -mfpu=neon-fp-armv8` |
+| **Dependências** | `deps-armv6/` | `deps/` |
+| **Build Dir** | `build-rpi1/` | `build-rpi/` |
+| **Tamanho** | ~2.5MB (estático) | ~60KB (dinâmico) |
 
 ## 🛠️ Configuração do Ambiente
 
@@ -31,12 +56,22 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 
 ### Instalação Automática
 
+#### Para Raspberry Pi 2/3/Zero 2W (ARMv7):
 ```bash
 # Configurar ambiente completo de cross-compilation
 make setup
 
 # Ou manualmente:
 ./scripts/setup_cross_compilation.sh
+```
+
+#### Para Raspberry Pi 1/Zero (ARMv6):
+```bash
+# Configurar ambiente para ARMv6
+make setup-armv6
+
+# Ou manualmente:
+./scripts/setup_armv6.sh
 ```
 
 ### Verificação do Ambiente
@@ -54,14 +89,20 @@ make check
 ### Usando Makefile (Recomendado)
 
 ```bash
-# Compilar projeto
+# Compilar projeto (ARMv7 - Pi 2/3/Zero 2W)
 make build
+
+# Compilar projeto (ARMv6 - Pi 1/Zero)
+make build-armv6
 
 # Limpar e recompilar
 make rebuild
 
 # Ver informações do projeto
 make info
+
+# Ver informações ARMv6
+make info-armv6
 ```
 
 ### Usando CMake Diretamente
@@ -89,18 +130,25 @@ make deploy RPI_IP=192.168.1.100 RPI_USER=pi
 ### Deploy Manual
 
 ```bash
-# Transferir executável
+# ARMv7 (Pi 2/3/Zero 2W)
 ./deploy_to_rpi.sh <IP_DA_RPI> <USUARIO>
-
-# Ou via SCP
 scp build-rpi/bin/app pi@<IP>:~/
+
+# ARMv6 (Pi 1/Zero) - Deploy automático
+make deploy-armv6 RPI_IP=<IP> RPI_USER=pi
+
+# ARMv6 (Pi 1/Zero) - Deploy manual
+scp build-rpi1/bin/app pi@<IP>:~/app_armv6
 ```
 
 ### Execução na Raspberry Pi
 
 ```bash
-# Executar com privilégios de root (necessário para acesso serial)
+# ARMv7 (Pi 2/3/Zero 2W)
 sudo ./app
+
+# ARMv6 (Pi 1/Zero) - Executável estático
+sudo ./app_armv6
 ```
 
 ## 📁 Estrutura do Projeto
