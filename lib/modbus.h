@@ -23,7 +23,7 @@ typedef struct modbus_t modbus_t;
 
 // Endereços Modbus
 #define MODBUS_ADDR_0x200 0x200
-#define MODBUS_ADDR_0x20D 0x20D
+#define MODBUS_ADDR_0x21F 0x21F
 
 // Timeouts (em microssegundos)
 #define MODBUS_RESPONSE_TIMEOUT_US 500000  // 500ms
@@ -32,10 +32,10 @@ typedef struct modbus_t modbus_t;
 // Estrutura para dados lidos
 typedef struct {
     uint16_t addr_0x200;    // Valor do registrador 0x200
-    uint16_t addr_0x20d;    // Valor do registrador 0x20D
-    bool addr_0x20d_binary; // Interpretação binária de 0x20D (0 ou 1)
+    uint16_t addr_0x21f;    // Valor do registrador 0x21F
+    bool addr_0x21f_binary; // Interpretação binária de 0x21F (0 ou 1)
     bool valid_0x200;       // Flag indicando se leitura de 0x200 foi bem-sucedida
-    bool valid_0x20d;       // Flag indicando se leitura de 0x20D foi bem-sucedida
+    bool valid_0x21f;       // Flag indicando se leitura de 0x21F foi bem-sucedida
 } modbus_data_t;
 
 // Handle opaco para contexto Modbus

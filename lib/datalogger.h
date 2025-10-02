@@ -35,7 +35,7 @@ typedef struct {
     uint32_t record_number;     // Número do registro (R)
     struct tm timestamp;        // Data e hora
     uint16_t temperature;       // TPrincipal (0x200)
-    bool door_open;            // PA - Porta Aberta (0x20D)
+    bool door_open;            // PA - Porta Aberta (0x21F)
     bool temp_valid;           // Flag indicando se temperatura é válida
     bool door_valid;           // Flag indicando se status da porta é válido
 } datalogger_record_t;

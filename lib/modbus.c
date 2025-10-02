@@ -115,16 +115,16 @@ bool modbus_read_all(modbus_context_t* ctx, modbus_data_t* data) {
     // Ler registrador 0x200
     data->valid_0x200 = modbus_read_register(ctx, MODBUS_ADDR_0x200, &data->addr_0x200);
 
-    // Ler registrador 0x20D
-    data->valid_0x20d = modbus_read_register(ctx, MODBUS_ADDR_0x20D, &data->addr_0x20d);
-    
-    // Converter 0x20D para binário
-    if (data->valid_0x20d) {
-        data->addr_0x20d_binary = modbus_value_to_binary(data->addr_0x20d);
+    // Ler registrador 0x21F
+    data->valid_0x21f = modbus_read_register(ctx, MODBUS_ADDR_0x21F, &data->addr_0x21f);
+
+    // Converter 0x21F para binário
+    if (data->valid_0x21f) {
+        data->addr_0x21f_binary = modbus_value_to_binary(data->addr_0x21f);
     }
 
     // Retorna true se pelo menos uma leitura foi bem-sucedida
-    return (data->valid_0x200 || data->valid_0x20d);
+    return (data->valid_0x200 || data->valid_0x21f);
 }
 
 void modbus_print_config(void) {
@@ -133,7 +133,7 @@ void modbus_print_config(void) {
     printf("  Configuração: %d-%c-%d-%d\n", MODBUS_BAUD_RATE, MODBUS_PARITY, 
            MODBUS_DATA_BITS, MODBUS_STOP_BITS);
     printf("  Slave ID: %d\n", MODBUS_SLAVE_ID);
-    printf("  Endereços: 0x%X e 0x%X\n", MODBUS_ADDR_0x200, MODBUS_ADDR_0x20D);
+    printf("  Endereços: 0x%X e 0x%X\n", MODBUS_ADDR_0x200, MODBUS_ADDR_0x21F);
     printf("  Timeout resposta: %d ms\n", MODBUS_RESPONSE_TIMEOUT_US / 1000);
     printf("  Timeout byte: %d ms\n", MODBUS_BYTE_TIMEOUT_US / 1000);
     printf("----------------------------------------\n");
@@ -151,12 +151,12 @@ void modbus_print_data(const modbus_data_t* data) {
         printf("  Endereço 0x200: ERRO na leitura\n");
     }
 
-    if (data->valid_0x20d) {
-        printf("  Endereço 0x20D: %u (0x%04X) - Binário: %s\n", 
-               data->addr_0x20d, data->addr_0x20d, 
-               data->addr_0x20d_binary ? "1" : "0");
+    if (data->valid_0x21f) {
+        printf("  Endereço 0x21F: %u (0x%04X) - Binário: %s\n",
+               data->addr_0x21f, data->addr_0x21f,
+               data->addr_0x21f_binary ? "1" : "0");
     } else {
-        printf("  Endereço 0x20D: ERRO na leitura\n");
+        printf("  Endereço 0x21F: ERRO na leitura\n");
     }
 }
 

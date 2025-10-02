@@ -152,12 +152,12 @@ int main(void) {
             modbus_print_data(&data);
 
             // Verificar mudança de estado da porta
-            if (data.valid_0x20d && previous_door_state_valid) {
-                if (data.addr_0x20d != previous_door_state) {
+            if (data.valid_0x21f && previous_door_state_valid) {
+                if (data.addr_0x21f != previous_door_state) {
                     should_log = true;
                     is_door_change = true;
                     printf("🚪 MUDANÇA DE ESTADO DA PORTA: %u → %u\n",
-                           previous_door_state, data.addr_0x20d);
+                           previous_door_state, data.addr_0x21f);
                 }
             }
 
@@ -184,8 +184,8 @@ int main(void) {
             }
 
             // Atualizar estado anterior da porta
-            if (data.valid_0x20d) {
-                previous_door_state = data.addr_0x20d;
+            if (data.valid_0x21f) {
+                previous_door_state = data.addr_0x21f;
                 previous_door_state_valid = true;
             }
 

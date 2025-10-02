@@ -200,8 +200,8 @@ bool datalogger_convert_modbus_data(const modbus_data_t* modbus_data,
         record->temp_valid = true;
     }
     
-    if (modbus_data->valid_0x20d) {
-        record->door_open = modbus_data->addr_0x20d_binary;
+    if (modbus_data->valid_0x21f) {
+        record->door_open = modbus_data->addr_0x21f_binary;
         record->door_valid = true;
     }
     

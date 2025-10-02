@@ -10,7 +10,7 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 
 - 🔌 **Comunicação Modbus RTU** via porta serial (`/dev/serial0`)
 - 🎯 **Cross-compilation** para ARM (Raspberry Pi 1/Zero 2W/3)
-- 📊 **Leitura de registradores** 0x200 (Temperatura) e 0x20D (Porta)
+- 📊 **Leitura de registradores** 0x200 (Temperatura) e 0x21F (Porta)
 - 📝 **DataLogger duplo** com formatos TXT e SQLite
 - 🕐 **Sincronização com RTC** (DS3231) para timestamps precisos
 - 🔄 **Duplo modo de logging**: periódico (5 min) + imediato (mudança de porta)
@@ -202,7 +202,7 @@ dmesg | grep tty
 O sistema lê dois registradores Modbus:
 
 - **0x200**: Valor numérico (16-bit)
-- **0x20D**: Valor binário (0 ou 1)
+- **0x21F**: Valor binário (0 ou 1)
 
 ### Exemplo de Saída
 
@@ -211,13 +211,13 @@ Iniciando leitura Modbus...
 Dispositivo: /dev/serial0
 Configuração: 9600-N-8-1
 Slave ID: 1
-Endereços: 0x200 (0x200) e 0x20D (0x20D)
+Endereços: 0x200 (0x200) e 0x21F (0x21F)
 ----------------------------------------
 Conexão estabelecida com sucesso!
 
 Lendo registradores...
 Endereço 0x200: 1234 (0x04D2)
-Endereço 0x20D: 1 (0x0001) - Binário: 1
+Endereço 0x21F: 1 (0x0001) - Binário: 1
 ----------------------------------------
 ```
 
@@ -254,7 +254,7 @@ make check
 - **Stop Bits**: 1
 - **Slave ID**: 1
 - **Timeout**: 500ms (resposta), 200ms (byte)
-- **Registradores**: 0x200 (Temperatura), 0x20D (Porta)
+- **Registradores**: 0x200 (Temperatura), 0x21F (Porta)
 
 ### DataLogger
 - **Nome do dispositivo**: Configurável em `src/main.c` (`DEVICE_NAME`)
@@ -285,7 +285,7 @@ Onde:
 - **R**: Número sequencial do registro
 - **Data Hora**: Timestamp do RTC (DD/MM/YYYY HH:MM:SS)
 - **TPrincipal**: Temperatura do registrador 0x200 (valor real: 231 → 23.1°C)
-- **PA**: Porta Aberta (0=fechada, 1=aberta) do registrador 0x20D
+- **PA**: Porta Aberta (0=fechada, 1=aberta) do registrador 0x21F
 
 ### Comportamento do Logging
 
