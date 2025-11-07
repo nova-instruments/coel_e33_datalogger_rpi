@@ -199,12 +199,22 @@ bool datalogger_convert_modbus_data(const modbus_data_t* modbus_data,
         record->temperature = modbus_data->addr_0x200;
         record->temp_valid = true;
     }
-    
+
+    if (modbus_data->valid_0x214) {
+        record->alarm_active = modbus_data->addr_0x214_binary;
+        record->alarm_valid = true;
+    }
+
     if (modbus_data->valid_0x21f) {
         record->door_open = modbus_data->addr_0x21f_binary;
         record->door_valid = true;
     }
-    
+
+    if (modbus_data->valid_0x2803) {
+        record->setpoint = modbus_data->addr_0x2803;
+        record->setpoint_valid = true;
+    }
+
     return true;
 }
 
@@ -349,12 +359,14 @@ bool datalogger_create_tables(datalogger_context_t* ctx) {
 
     char* err_msg = NULL;
 
-    // Criar tabela principal DataGrpData (sem coluna Degelo)
+    // Criar tabela principal DataGrpData (com Temperatura, Setpoint, Alarme e Porta)
     const char* create_data_table =
         "CREATE TABLE IF NOT EXISTS DataGrpData ("
         "IndexID INTEGER PRIMARY KEY AUTOINCREMENT,"
         "CollectTime INTEGER NOT NULL,"
         "Tprincipal REAL NOT NULL,"
+        "Setpoint REAL NOT NULL,"
+        "Alarme INTEGER NOT NULL,"
         "Porta INTEGER NOT NULL"
         ");";
 
@@ -425,6 +437,21 @@ bool datalogger_convert_to_db_record(const datalogger_record_t* txt_record,
         db_record->Tprincipal = 0.0f;  // Valor padrão para erro
     }
 
+    // Converter setpoint (dividir por 10 e arredondar para 2 casas decimais)
+    if (txt_record->setpoint_valid) {
+        float setpoint_celsius = txt_record->setpoint / 10.0f;
+        db_record->Setpoint = roundf(setpoint_celsius * 100.0f) / 100.0f;  // 2 casas decimais
+    } else {
+        db_record->Setpoint = 0.0f;  // Valor padrão para erro
+    }
+
+    // Status do alarme
+    if (txt_record->alarm_valid) {
+        db_record->Alarme = txt_record->alarm_active ? 1 : 0;
+    } else {
+        db_record->Alarme = 0;  // Valor padrão para erro
+    }
+
     // Status da porta
     if (txt_record->door_valid) {
         db_record->Porta = txt_record->door_open ? 1 : 0;
@@ -443,8 +470,8 @@ bool datalogger_insert_db_record(datalogger_context_t* ctx,
     if (!ctx || !ctx->db || !db_record) return false;
 
     const char* sql =
-        "INSERT INTO DataGrpData (CollectTime, Tprincipal, Porta) "
-        "VALUES (?, ROUND(?, 2), ?);";
+        "INSERT INTO DataGrpData (CollectTime, Tprincipal, Setpoint, Alarme, Porta) "
+        "VALUES (?, ROUND(?, 2), ROUND(?, 2), ?, ?);";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(ctx->db, sql, -1, &stmt, NULL);
@@ -456,7 +483,9 @@ bool datalogger_insert_db_record(datalogger_context_t* ctx,
     // Bind dos parâmetros
     sqlite3_bind_int64(stmt, 1, db_record->CollectTime);
     sqlite3_bind_double(stmt, 2, db_record->Tprincipal);
-    sqlite3_bind_int(stmt, 3, db_record->Porta);
+    sqlite3_bind_double(stmt, 3, db_record->Setpoint);
+    sqlite3_bind_int(stmt, 4, db_record->Alarme);
+    sqlite3_bind_int(stmt, 5, db_record->Porta);
 
     // Executar
     rc = sqlite3_step(stmt);

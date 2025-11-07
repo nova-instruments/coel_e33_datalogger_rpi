@@ -22,8 +22,10 @@ typedef struct modbus_t modbus_t;
 #define MODBUS_SLAVE_ID   1
 
 // Endereços Modbus
-#define MODBUS_ADDR_0x200 0x200
-#define MODBUS_ADDR_0x21F 0x21F
+#define MODBUS_ADDR_0x200 0x200  // Temperatura
+#define MODBUS_ADDR_0x214 0x214  // Alarmes
+#define MODBUS_ADDR_0x21F 0x21F  // Estado da porta
+#define MODBUS_ADDR_0x2803 0x2803  // Setpoint
 
 // Timeouts (em microssegundos)
 #define MODBUS_RESPONSE_TIMEOUT_US 500000  // 500ms
@@ -31,11 +33,16 @@ typedef struct modbus_t modbus_t;
 
 // Estrutura para dados lidos
 typedef struct {
-    uint16_t addr_0x200;    // Valor do registrador 0x200
-    uint16_t addr_0x21f;    // Valor do registrador 0x21F
+    uint16_t addr_0x200;    // Valor do registrador 0x200 (Temperatura)
+    uint16_t addr_0x214;    // Valor do registrador 0x214 (Alarmes)
+    uint16_t addr_0x21f;    // Valor do registrador 0x21F (Estado da porta)
+    uint16_t addr_0x2803;   // Valor do registrador 0x2803 (Setpoint)
+    bool addr_0x214_binary; // Interpretação binária de 0x214 (0 ou 1)
     bool addr_0x21f_binary; // Interpretação binária de 0x21F (0 ou 1)
     bool valid_0x200;       // Flag indicando se leitura de 0x200 foi bem-sucedida
+    bool valid_0x214;       // Flag indicando se leitura de 0x214 foi bem-sucedida
     bool valid_0x21f;       // Flag indicando se leitura de 0x21F foi bem-sucedida
+    bool valid_0x2803;      // Flag indicando se leitura de 0x2803 foi bem-sucedida
 } modbus_data_t;
 
 // Handle opaco para contexto Modbus

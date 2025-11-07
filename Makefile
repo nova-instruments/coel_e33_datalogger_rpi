@@ -155,10 +155,26 @@ deploy-armv6:
 		echo "❌ Executável ARMv6 não encontrado. Execute 'make build-armv6' primeiro."; \
 		exit 1; \
 	fi
-	@echo "📤 Enviando executável ARMv6 estático para $(RPI_USER)@$(RPI_IP)..."
+	@echo "📤 Enviando arquivos para $(RPI_USER)@$(RPI_IP)..."
 	@scp $(BUILD_DIR_ARMV6)/bin/app $(RPI_USER)@$(RPI_IP):~/app_armv6
+	@scp install_service.sh $(RPI_USER)@$(RPI_IP):~/install_service.sh
+	@scp uninstall_service.sh $(RPI_USER)@$(RPI_IP):~/uninstall_service.sh
+	@scp config.txt.example $(RPI_USER)@$(RPI_IP):~/config.txt.example
+	@ssh $(RPI_USER)@$(RPI_IP) "chmod +x ~/install_service.sh ~/uninstall_service.sh"
 	@echo "✅ Deploy ARMv6 concluído!"
-	@echo "🎯 Para executar: sudo ./app_armv6"
+	@echo ""
+	@echo "📋 Arquivos enviados:"
+	@echo "  • app_armv6 (executável)"
+	@echo "  • install_service.sh (instalador do serviço)"
+	@echo "  • uninstall_service.sh (desinstalador do serviço)"
+	@echo "  • config.txt.example (exemplo de configuração)"
+	@echo ""
+	@echo "🎯 Para instalar como serviço:"
+	@echo "   ssh $(RPI_USER)@$(RPI_IP)"
+	@echo "   sudo ./install_service.sh"
+	@echo ""
+	@echo "🎯 Para executar manualmente:"
+	@echo "   sudo ./app_armv6"
 
 info-armv6:
 	@echo "=== Informações do Projeto Modbus Reader ARMv6 ==="

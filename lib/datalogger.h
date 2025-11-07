@@ -38,13 +38,20 @@ typedef struct {
     bool door_open;            // PA - Porta Aberta (0x21F)
     bool temp_valid;           // Flag indicando se temperatura é válida
     bool door_valid;           // Flag indicando se status da porta é válido
+    // Campos adicionais apenas para o banco de dados
+    bool alarm_active;         // Alarme (0x214) - apenas para DB
+    bool alarm_valid;          // Flag indicando se status do alarme é válido - apenas para DB
+    uint16_t setpoint;         // Setpoint (0x2803) - apenas para DB
+    bool setpoint_valid;       // Flag indicando se setpoint é válido - apenas para DB
 } datalogger_record_t;
 
-// Estrutura para registro no banco SQLite (sem coluna Degelo)
+// Estrutura para registro no banco SQLite
 typedef struct {
     int IndexID;               // Chave primária (auto-incremento)
     long long CollectTime;     // Timestamp em milissegundos
     float Tprincipal;          // Temperatura principal em °C (2 casas decimais)
+    float Setpoint;            // Setpoint em °C (2 casas decimais)
+    int Alarme;                // Status do alarme (0=sem alarme, 1=alarme ativo)
     int Porta;                 // Status da porta (0=fechada, 1=aberta)
 } datalogger_db_record_t;
 

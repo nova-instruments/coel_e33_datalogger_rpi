@@ -10,13 +10,16 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 
 - 🔌 **Comunicação Modbus RTU** via porta serial (`/dev/serial0`)
 - 🎯 **Cross-compilation** para ARM (Raspberry Pi 1/Zero 2W/3)
-- 📊 **Leitura de registradores** 0x200 (Temperatura) e 0x21F (Porta)
+- 📊 **Leitura de registradores** 0x200 (Temperatura), 0x214 (Alarmes), 0x21F (Porta), 0x2803 (Setpoint)
 - 📝 **DataLogger duplo** com formatos TXT e SQLite
 - 🕐 **Sincronização com RTC** (DS3231) para timestamps precisos
-- 🔄 **Duplo modo de logging**: periódico (5 min) + imediato (mudança de porta)
-- 🚪 **Detecção de mudança de estado** da porta com registro instantâneo
+- 🔄 **Triplo modo de logging**: periódico (5 min) + imediato (mudança de porta/alarme)
+- 🚪 **Detecção de mudança de estado** da porta e alarme com registro instantâneo
 - 🔌 **Extração automática via pen drive** com monitoramento contínuo
 - 🔊 **Sinalização sonora** via buzzer no GPIO23 ao finalizar extração
+- 💡 **Controle de relés**: Lâmpada (GPIO24) e Discadora (GPIO25)
+- ⚙️ **Configuração via arquivo**: Nome do dispositivo em `config.txt`
+- 🚀 **Serviço systemd**: Instalação automática para inicialização no boot
 - 📱 **Deploy automatizado** via SSH
 - 💾 **Armazenamento local** em `/home/nova/`
 
@@ -143,12 +146,29 @@ scp build-rpi1/bin/app pi@<IP>:~/app_armv6
 
 ### Execução na Raspberry Pi
 
+#### Execução Manual
 ```bash
 # ARMv7 (Pi 2/3/Zero 2W)
 sudo ./app
 
 # ARMv6 (Pi 1/Zero) - Executável estático
 sudo ./app_armv6
+```
+
+#### Instalação como Serviço (Recomendado)
+```bash
+# Instalar serviço systemd
+sudo ./install_service.sh
+
+# Comandos do serviço
+sudo systemctl status coel-datalogger   # Ver status
+sudo systemctl stop coel-datalogger     # Parar
+sudo systemctl start coel-datalogger    # Iniciar
+sudo systemctl restart coel-datalogger  # Reiniciar
+sudo journalctl -u coel-datalogger -f   # Ver logs em tempo real
+
+# Desinstalar serviço
+sudo ./uninstall_service.sh
 ```
 
 ## 📁 Estrutura do Projeto
@@ -199,10 +219,12 @@ dmesg | grep tty
 
 ## 📊 Dados Lidos
 
-O sistema lê dois registradores Modbus:
+O sistema lê quatro registradores Modbus:
 
-- **0x200**: Valor numérico (16-bit)
-- **0x21F**: Valor binário (0 ou 1)
+- **0x200**: Temperatura (÷10 para °C)
+- **0x214**: Alarmes (0 ou 1) → Controla Discadora (GPIO25)
+- **0x21F**: Porta (0 ou 1) → Controla Lâmpada (GPIO24)
+- **0x2803**: Setpoint (÷10 para °C)
 
 ### Exemplo de Saída
 
@@ -254,19 +276,23 @@ make check
 - **Stop Bits**: 1
 - **Slave ID**: 1
 - **Timeout**: 500ms (resposta), 200ms (byte)
-- **Registradores**: 0x200 (Temperatura), 0x21F (Porta)
+- **Registradores**:
+  - 0x200 (Temperatura)
+  - 0x214 (Alarmes)
+  - 0x21F (Porta)
+  - 0x2803 (Setpoint)
 
 ### DataLogger
-- **Nome do dispositivo**: Configurável em `src/main.c` (`DEVICE_NAME`)
+- **Nome do dispositivo**: Configurável em `config.txt` (`DEVICE_NAME=NI00002`)
 - **Diretório de logs**: `/home/nova/`
 - **Formatos de arquivo**:
-  - **TXT**: `NOME_YYYYMMDD_HHMMSS.txt` (formato brasileiro)
-  - **SQLite**: `NOME_YYYYMMDD_HHMMSS.db` (banco estruturado)
+  - **TXT**: `NOME_YYYYMMDD_HHMMSS.txt` (Temperatura e Porta)
+  - **SQLite**: `NOME_YYYYMMDD_HHMMSS.db` (Temperatura, Setpoint, Alarme, Porta)
 - **Modo de logging**:
   - **Periódico**: A cada 5 minutos (300 segundos)
-  - **Imediato**: Quando detecta mudança de estado da porta
+  - **Imediato**: Quando detecta mudança de estado da porta ou alarme
 - **Estrutura do banco SQLite**:
-  - **Tabela DataGrpData**: IndexID, CollectTime, Tprincipal (2 decimais), Porta
+  - **Tabela DataGrpData**: IndexID, CollectTime, Tprincipal, Setpoint, Alarme, Porta
   - **Tabela DBInfo**: Metadados do banco (versão, IDs, timestamps)
 - **Frequência de verificação**: A cada 2 segundos (para detectar mudanças)
 - **Fonte de tempo**: RTC (DS3231) com fallback para sistema
@@ -293,10 +319,12 @@ Onde:
 - Registra dados automaticamente a cada 5 minutos
 - Mantém histórico contínuo independente de mudanças
 
-#### 🚪 Log por Mudança de Porta (Imediato)
-- Detecta mudanças no estado da porta (0↔1)
+#### 🚪 Log por Mudança de Porta/Alarme (Imediato)
+- Detecta mudanças no estado da porta (0↔1) e alarme (0↔1)
 - Registra **imediatamente** quando detecta mudança
-- Exibe mensagem: `🚪 MUDANÇA DE ESTADO DA PORTA: 0 → 1`
+- Exibe mensagens:
+  - `🚪 MUDANÇA DE ESTADO DA PORTA: 0 → 1`
+  - `🚨 MUDANÇA DE ESTADO DO ALARME: 0 → 1`
 - Não interfere no ciclo periódico
 
 #### ⚡ Frequência de Verificação
@@ -344,6 +372,46 @@ GND    (Pino 20) ──── Negativo (-)
 ```
 
 **Nota:** Se o buzzer não puder ser inicializado, a aplicação continua funcionando normalmente sem sinalização sonora.
+
+## 💡 Controle de Relés
+
+### **Configuração do Hardware:**
+- **GPIO 24 (Lâmpada)**: Pino físico 18
+- **GPIO 25 (Discadora)**: Pino físico 22
+- **Biblioteca**: libgpiod
+
+### **Funcionamento:**
+- **Lâmpada (GPIO24)**: Controlada pelo estado da porta (0x21F)
+  - Porta ABERTA (1) → Lâmpada LIGA
+  - Porta FECHADA (0) → Lâmpada DESLIGA
+
+- **Discadora (GPIO25)**: Controlada pelo estado do alarme (0x214)
+  - Alarme ATIVO (1) → Discadora LIGA
+  - Alarme INATIVO (0) → Discadora DESLIGA
+
+### **Conexão Sugerida:**
+```
+Raspberry Pi          Relé Lâmpada
+GPIO 24 (Pino 18) ──── Sinal
+GND     (Pino 20) ──── GND
+5V      (Pino 2)  ──── VCC
+
+Raspberry Pi          Relé Discadora
+GPIO 25 (Pino 22) ──── Sinal
+GND     (Pino 20) ──── GND
+5V      (Pino 2)  ──── VCC
+```
+
+## ⚙️ Configuração do Dispositivo
+
+O nome do dispositivo é configurado através do arquivo `config.txt` no mesmo diretório do executável:
+
+```bash
+# Criar arquivo de configuração
+echo "DEVICE_NAME=NI00003" > config.txt
+```
+
+Se o arquivo não existir, o sistema usa o nome padrão `NI00002`.
 
 ## 🔌 Extração Automática via Pen Drive
 

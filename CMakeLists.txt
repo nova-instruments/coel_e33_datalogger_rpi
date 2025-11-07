@@ -57,6 +57,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_library(modbus_lib STATIC lib/modbus.c)
 add_library(datalogger_lib STATIC lib/datalogger.c)
 add_library(usb_manager STATIC lib/usb_manager.c)
+add_library(relay_control STATIC lib/relay_control.c)
 
 # Executável principal
 add_executable(app src/main.c)
@@ -66,6 +67,7 @@ target_link_libraries(app
     modbus_lib
     datalogger_lib
     usb_manager
+    relay_control
     modbus
     gpiod
     udev

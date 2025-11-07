@@ -112,11 +112,22 @@ bool modbus_read_all(modbus_context_t* ctx, modbus_data_t* data) {
     // Inicializar estrutura
     memset(data, 0, sizeof(modbus_data_t));
 
-    // Ler registrador 0x200
+    // Ler registrador 0x200 (Temperatura)
     data->valid_0x200 = modbus_read_register(ctx, MODBUS_ADDR_0x200, &data->addr_0x200);
 
-    // Ler registrador 0x21F
+    // Ler registrador 0x214 (Alarmes)
+    data->valid_0x214 = modbus_read_register(ctx, MODBUS_ADDR_0x214, &data->addr_0x214);
+
+    // Ler registrador 0x21F (Estado da porta)
     data->valid_0x21f = modbus_read_register(ctx, MODBUS_ADDR_0x21F, &data->addr_0x21f);
+
+    // Ler registrador 0x2803 (Setpoint)
+    data->valid_0x2803 = modbus_read_register(ctx, MODBUS_ADDR_0x2803, &data->addr_0x2803);
+
+    // Converter 0x214 para binário
+    if (data->valid_0x214) {
+        data->addr_0x214_binary = modbus_value_to_binary(data->addr_0x214);
+    }
 
     // Converter 0x21F para binário
     if (data->valid_0x21f) {
@@ -124,16 +135,17 @@ bool modbus_read_all(modbus_context_t* ctx, modbus_data_t* data) {
     }
 
     // Retorna true se pelo menos uma leitura foi bem-sucedida
-    return (data->valid_0x200 || data->valid_0x21f);
+    return (data->valid_0x200 || data->valid_0x214 || data->valid_0x21f || data->valid_0x2803);
 }
 
 void modbus_print_config(void) {
     printf("Configuração Modbus:\n");
     printf("  Dispositivo: %s\n", MODBUS_DEVICE);
-    printf("  Configuração: %d-%c-%d-%d\n", MODBUS_BAUD_RATE, MODBUS_PARITY, 
+    printf("  Configuração: %d-%c-%d-%d\n", MODBUS_BAUD_RATE, MODBUS_PARITY,
            MODBUS_DATA_BITS, MODBUS_STOP_BITS);
     printf("  Slave ID: %d\n", MODBUS_SLAVE_ID);
-    printf("  Endereços: 0x%X e 0x%X\n", MODBUS_ADDR_0x200, MODBUS_ADDR_0x21F);
+    printf("  Endereços: 0x%X (Temperatura), 0x%X (Alarmes), 0x%X (Porta), 0x%X (Setpoint)\n",
+           MODBUS_ADDR_0x200, MODBUS_ADDR_0x214, MODBUS_ADDR_0x21F, MODBUS_ADDR_0x2803);
     printf("  Timeout resposta: %d ms\n", MODBUS_RESPONSE_TIMEOUT_US / 1000);
     printf("  Timeout byte: %d ms\n", MODBUS_BYTE_TIMEOUT_US / 1000);
     printf("----------------------------------------\n");
@@ -143,20 +155,37 @@ void modbus_print_data(const modbus_data_t* data) {
     if (!data) return;
 
     printf("Dados lidos:\n");
-    
+
     if (data->valid_0x200) {
         float temp_celsius = data->addr_0x200 / 10.0f;
-        printf("  Endereço 0x200: %u (0x%04X) = %.1f°C\n", data->addr_0x200, data->addr_0x200, temp_celsius);
+        printf("  Endereço 0x200 (Temperatura): %u (0x%04X) = %.1f°C\n",
+               data->addr_0x200, data->addr_0x200, temp_celsius);
     } else {
-        printf("  Endereço 0x200: ERRO na leitura\n");
+        printf("  Endereço 0x200 (Temperatura): ERRO na leitura\n");
+    }
+
+    if (data->valid_0x214) {
+        printf("  Endereço 0x214 (Alarmes): %u (0x%04X) - Binário: %s\n",
+               data->addr_0x214, data->addr_0x214,
+               data->addr_0x214_binary ? "1 (ALARME ATIVO)" : "0 (SEM ALARME)");
+    } else {
+        printf("  Endereço 0x214 (Alarmes): ERRO na leitura\n");
     }
 
     if (data->valid_0x21f) {
-        printf("  Endereço 0x21F: %u (0x%04X) - Binário: %s\n",
+        printf("  Endereço 0x21F (Porta): %u (0x%04X) - Binário: %s\n",
                data->addr_0x21f, data->addr_0x21f,
-               data->addr_0x21f_binary ? "1" : "0");
+               data->addr_0x21f_binary ? "1 (ABERTA)" : "0 (FECHADA)");
     } else {
-        printf("  Endereço 0x21F: ERRO na leitura\n");
+        printf("  Endereço 0x21F (Porta): ERRO na leitura\n");
+    }
+
+    if (data->valid_0x2803) {
+        float setpoint_celsius = data->addr_0x2803 / 10.0f;
+        printf("  Endereço 0x2803 (Setpoint): %u (0x%04X) = %.1f°C\n",
+               data->addr_0x2803, data->addr_0x2803, setpoint_celsius);
+    } else {
+        printf("  Endereço 0x2803 (Setpoint): ERRO na leitura\n");
     }
 }
 

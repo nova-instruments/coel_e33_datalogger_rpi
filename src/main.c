@@ -11,13 +11,16 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <time.h>
+#include <string.h>
 #include "modbus.h"
 #include "datalogger.h"
 #include "usb_manager.h"
+#include "relay_control.h"
 
 // Configurações da aplicação
 #define LOOP_INTERVAL_SECONDS 300  // 5 minutos = 300 segundos
-#define DEVICE_NAME "NI00002"  // Nome do dispositivo
+#define DEFAULT_DEVICE_NAME "NI00002"  // Nome padrão do dispositivo
+#define CONFIG_FILE "config.txt"  // Arquivo de configuração
 
 // Variável global para controle do loop principal
 static volatile bool running = true;
@@ -27,6 +30,56 @@ typedef struct {
     const char* source_dir;
     volatile bool* running;
 } usb_thread_data_t;
+
+/**
+ * @brief Lê o nome do dispositivo do arquivo de configuração
+ * @param device_name Buffer para armazenar o nome do dispositivo
+ * @param buffer_size Tamanho do buffer
+ * @return true se leu com sucesso, false caso contrário
+ */
+static bool read_device_name_from_config(char* device_name, size_t buffer_size) {
+    FILE* config_file = fopen(CONFIG_FILE, "r");
+    if (!config_file) {
+        fprintf(stderr, "⚠️  Arquivo de configuração '%s' não encontrado\n", CONFIG_FILE);
+        return false;
+    }
+
+    char line[256];
+    bool found = false;
+
+    while (fgets(line, sizeof(line), config_file)) {
+        // Remover espaços em branco no início
+        char* start = line;
+        while (*start == ' ' || *start == '\t') start++;
+
+        // Verificar se a linha começa com "DEVICE_NAME="
+        if (strncmp(start, "DEVICE_NAME=", 12) == 0) {
+            char* value = start + 12;
+
+            // Remover espaços em branco no início do valor
+            while (*value == ' ' || *value == '\t') value++;
+
+            // Remover quebra de linha e espaços no final
+            size_t len = strlen(value);
+            while (len > 0 && (value[len-1] == '\n' || value[len-1] == '\r' ||
+                               value[len-1] == ' ' || value[len-1] == '\t')) {
+                value[len-1] = '\0';
+                len--;
+            }
+
+            // Copiar valor se não estiver vazio
+            if (len > 0 && len < buffer_size) {
+                strncpy(device_name, value, buffer_size - 1);
+                device_name[buffer_size - 1] = '\0';
+                found = true;
+                break;
+            }
+        }
+    }
+
+    fclose(config_file);
+    return found;
+}
 
 /**
  * @brief Handler para sinais (SIGINT, SIGTERM)
@@ -92,8 +145,18 @@ static void setup_signal_handlers(void) {
  */
 int main(void) {
     printf("=== COEL E33 DataLogger RPi ===\n");
-    printf("Nova Instruments\n");
-    printf("Dispositivo: %s\n\n", DEVICE_NAME);
+    printf("Nova Instruments\n\n");
+
+    // Ler nome do dispositivo do arquivo de configuração
+    char device_name[32];
+    if (read_device_name_from_config(device_name, sizeof(device_name))) {
+        printf("✅ Nome do dispositivo lido do arquivo '%s': %s\n", CONFIG_FILE, device_name);
+    } else {
+        printf("⚠️  Usando nome padrão do dispositivo: %s\n", DEFAULT_DEVICE_NAME);
+        strncpy(device_name, DEFAULT_DEVICE_NAME, sizeof(device_name) - 1);
+        device_name[sizeof(device_name) - 1] = '\0';
+    }
+    printf("Dispositivo: %s\n\n", device_name);
 
     // Configurar handlers de sinais
     setup_signal_handlers();
@@ -106,11 +169,18 @@ int main(void) {
     }
 
     // Inicializar DataLogger
-    datalogger_context_t* datalogger_ctx = datalogger_init(DEVICE_NAME);
+    datalogger_context_t* datalogger_ctx = datalogger_init(device_name);
     if (!datalogger_ctx) {
         fprintf(stderr, "Erro: Falha ao inicializar DataLogger\n");
         modbus_cleanup(modbus_ctx);
         return EXIT_FAILURE;
+    }
+
+    // Inicializar controle de relés
+    if (relay_init() != 0) {
+        fprintf(stderr, "⚠️  Aviso: Falha ao inicializar relés (continuando sem controle de relés)\n");
+    } else {
+        printf("✅ Controle de relés ativo\n");
     }
 
     // Inicializar thread de monitoramento USB
@@ -137,6 +207,11 @@ int main(void) {
     uint16_t previous_door_state = 0;
     uint32_t door_change_logs = 0;
 
+    // Estado anterior do alarme (inicializar com valor inválido)
+    bool previous_alarm_state_valid = false;
+    uint16_t previous_alarm_state = 0;
+    uint32_t alarm_change_logs = 0;
+
     // Controle de tempo para log periódico
     time_t last_periodic_log = time(NULL);
 
@@ -144,6 +219,7 @@ int main(void) {
         modbus_data_t data;
         bool should_log = false;
         bool is_door_change = false;
+        bool is_alarm_change = false;
 
         printf("Lendo registradores Modbus...\n");
 
@@ -158,7 +234,41 @@ int main(void) {
                     is_door_change = true;
                     printf("🚪 MUDANÇA DE ESTADO DA PORTA: %u → %u\n",
                            previous_door_state, data.addr_0x21f);
+
+                    // Controlar lâmpada baseado no estado da porta
+                    relay_control_lamp_by_door(data.addr_0x21f_binary);
                 }
+            }
+
+            // Verificar mudança de estado do alarme
+            if (data.valid_0x214 && previous_alarm_state_valid) {
+                if (data.addr_0x214 != previous_alarm_state) {
+                    should_log = true;
+                    is_alarm_change = true;
+                    printf("🚨 MUDANÇA DE ESTADO DO ALARME: %u → %u\n",
+                           previous_alarm_state, data.addr_0x214);
+
+                    // Controlar discadora baseado no estado do alarme
+                    if (data.addr_0x214_binary) {
+                        relay_dialer_on();
+                        printf("📞 Discadora ACIONADA (Alarme ativo)\n");
+                    } else {
+                        relay_dialer_off();
+                        printf("📞 Discadora DESLIGADA (Alarme desativado)\n");
+                    }
+                }
+            }
+
+            // Atualizar estado anterior da porta
+            if (data.valid_0x21f) {
+                previous_door_state = data.addr_0x21f;
+                previous_door_state_valid = true;
+            }
+
+            // Atualizar estado anterior do alarme
+            if (data.valid_0x214) {
+                previous_alarm_state = data.addr_0x214;
+                previous_alarm_state_valid = true;
             }
 
             // Verificar se é hora do log periódico (5 minutos)
@@ -175,18 +285,15 @@ int main(void) {
                     if (is_door_change) {
                         printf("✅ Mudança de porta registrada imediatamente no log\n");
                         door_change_logs++;
+                    } else if (is_alarm_change) {
+                        printf("✅ Mudança de alarme registrada imediatamente no log\n");
+                        alarm_change_logs++;
                     } else {
                         printf("✅ Dados registrados no log (periódico)\n");
                     }
                 } else {
                     printf("❌ Erro ao registrar dados no log\n");
                 }
-            }
-
-            // Atualizar estado anterior da porta
-            if (data.valid_0x21f) {
-                previous_door_state = data.addr_0x21f;
-                previous_door_state_valid = true;
             }
 
         } else {
@@ -215,8 +322,10 @@ int main(void) {
     // Mostrar estatísticas finais
     datalogger_print_stats(datalogger_ctx);
     printf("Mudanças de porta registradas: %u\n", door_change_logs);
+    printf("Mudanças de alarme registradas: %u\n", alarm_change_logs);
 
     // Limpar recursos
+    relay_cleanup();
     datalogger_cleanup(datalogger_ctx);
     modbus_cleanup(modbus_ctx);
 
