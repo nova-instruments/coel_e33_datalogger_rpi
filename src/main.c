@@ -16,6 +16,7 @@
 #include "datalogger.h"
 #include "usb_manager.h"
 #include "relay_control.h"
+#include "reset_button.h"
 
 // Configurações da aplicação
 #define LOOP_INTERVAL_SECONDS 300  // 5 minutos = 300 segundos
@@ -183,6 +184,13 @@ int main(void) {
         printf("✅ Controle de relés ativo\n");
     }
 
+    // Inicializar botão de reset
+    if (reset_button_init() != 0) {
+        printf("⚠️  Aviso: Falha ao inicializar botão de reset (continuando sem esta funcionalidade)\n");
+    } else {
+        printf("✅ Botão de reset ativo\n");
+    }
+
     // Inicializar thread de monitoramento USB
     pthread_t usb_thread;
     usb_thread_data_t usb_data = {
@@ -199,7 +207,8 @@ int main(void) {
 
     printf("\nIniciando loop de aquisição de dados (intervalo: %d segundos = %d minutos)\n",
            LOOP_INTERVAL_SECONDS, LOOP_INTERVAL_SECONDS / 60);
-    printf("Pressione Ctrl+C para finalizar\n\n");
+    printf("Pressione Ctrl+C para finalizar\n");
+    printf("🔘 Pressione o botão de reset (GPIO5 → GND) para apagar todos os logs\n\n");
 
     // Loop principal de aquisição e logging
     // Estado anterior da porta (inicializar com valor inválido)
@@ -216,6 +225,61 @@ int main(void) {
     time_t last_periodic_log = time(NULL);
 
     while (running) {
+        // Verificar botão de reset
+        if (reset_button_is_pressed()) {
+            printf("\n🔘 BOTÃO DE RESET PRESSIONADO!\n");
+            printf("⚠️  Aguarde 3 segundos para confirmar...\n");
+
+            // Aguardar 3 segundos para confirmar (evitar acionamento acidental)
+            sleep(3);
+
+            // Verificar novamente se ainda está pressionado
+            if (reset_button_is_pressed()) {
+                printf("🗑️  CONFIRMADO! Apagando todos os logs...\n\n");
+
+                // Apagar todos os logs
+                if (reset_delete_all_logs("/home/nova")) {
+                    printf("✅ Todos os logs foram apagados com sucesso!\n");
+
+                    // Sinalizar com buzzer (5 beeps longos)
+                    printf("🔊 Sinalizando limpeza de logs...\n");
+                    buzzer_signal_extraction_complete();
+                    sleep(1);
+                    buzzer_signal_extraction_complete();
+                    printf("🔊 Sinalização concluída\n\n");
+
+                    printf("🔄 Reiniciando sistema de logging...\n\n");
+
+                    // Reiniciar datalogger para criar novos arquivos
+                    datalogger_cleanup(datalogger_ctx);
+                    datalogger_ctx = datalogger_init(device_name);
+                    if (!datalogger_ctx) {
+                        fprintf(stderr, "❌ Erro ao reiniciar DataLogger\n");
+                        running = false;
+                        break;
+                    }
+
+                    // Resetar contadores
+                    door_change_logs = 0;
+                    alarm_change_logs = 0;
+                    last_periodic_log = time(NULL);
+
+                    printf("✅ Sistema de logging reiniciado!\n\n");
+                } else {
+                    fprintf(stderr, "❌ Erro ao apagar logs\n\n");
+                }
+
+                // Aguardar soltar o botão
+                printf("💡 Solte o botão de reset...\n");
+                while (reset_button_is_pressed() && running) {
+                    sleep(1);
+                }
+                printf("✅ Botão liberado. Continuando operação normal.\n\n");
+            } else {
+                printf("❌ Cancelado (botão não mantido pressionado)\n\n");
+            }
+        }
+
         modbus_data_t data;
         bool should_log = false;
         bool is_door_change = false;
@@ -325,6 +389,7 @@ int main(void) {
     printf("Mudanças de alarme registradas: %u\n", alarm_change_logs);
 
     // Limpar recursos
+    reset_button_cleanup();
     relay_cleanup();
     datalogger_cleanup(datalogger_ctx);
     modbus_cleanup(modbus_ctx);

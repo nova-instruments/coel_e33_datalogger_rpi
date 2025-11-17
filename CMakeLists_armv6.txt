@@ -58,6 +58,7 @@ add_library(modbus_lib STATIC lib/modbus.c)
 add_library(datalogger_lib STATIC lib/datalogger.c)
 add_library(usb_manager STATIC lib/usb_manager.c)
 add_library(relay_control STATIC lib/relay_control.c)
+add_library(reset_button STATIC lib/reset_button.c)
 
 # Executável principal
 add_executable(app src/main.c)
@@ -68,6 +69,7 @@ target_link_libraries(app
     datalogger_lib
     usb_manager
     relay_control
+    reset_button
     modbus
     gpiod
     udev
