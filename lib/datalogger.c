@@ -20,7 +20,7 @@
  */
 static bool create_directory_if_not_exists(const char* path) {
     struct stat st = {0};
-    
+
     if (stat(path, &st) == -1) {
         if (mkdir(path, 0755) == -1) {
             fprintf(stderr, "Erro ao criar diretório %s: %s\n", path, strerror(errno));
@@ -28,8 +28,31 @@ static bool create_directory_if_not_exists(const char* path) {
         }
         printf("Diretório criado: %s\n", path);
     }
-    
+
     return true;
+}
+
+/**
+ * @brief Lê o último número de registro do arquivo TXT
+ */
+static uint32_t get_last_record_number(const char* filepath) {
+    FILE* fp = fopen(filepath, "r");
+    if (!fp) return 0;
+
+    uint32_t last_record = 0;
+    char line[512];
+
+    // Ler todas as linhas e pegar o último número de registro
+    while (fgets(line, sizeof(line), fp)) {
+        uint32_t record_num;
+        // Formato: R;Data Hora;TPrincipal;PA
+        if (sscanf(line, "%u;", &record_num) == 1) {
+            last_record = record_num;
+        }
+    }
+
+    fclose(fp);
+    return last_record;
 }
 
 /**
@@ -80,58 +103,57 @@ datalogger_context_t* datalogger_init(const char* device_name) {
     // Inicializar estrutura
     memset(ctx, 0, sizeof(datalogger_context_t));
     strncpy(ctx->device_name, device_name, sizeof(ctx->device_name) - 1);
-    ctx->record_counter = 0;
     ctx->initialized = false;
     ctx->log_file = NULL;
     ctx->db = NULL;
-    
+
     // Criar diretório de logs
     if (!create_directory_if_not_exists(DATALOGGER_LOG_DIR)) {
         free(ctx);
         return NULL;
     }
-    
-    // Gerar nome do arquivo de log com timestamp
-    time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    
-    snprintf(ctx->log_file_path, sizeof(ctx->log_file_path),
-             "%s/%s_%04d%02d%02d_%02d%02d%02d.txt",
-             DATALOGGER_LOG_DIR,
-             ctx->device_name,
-             tm_info->tm_year + 1900,
-             tm_info->tm_mon + 1,
-             tm_info->tm_mday,
-             tm_info->tm_hour,
-             tm_info->tm_min,
-             tm_info->tm_sec);
 
-    // Gerar nome do arquivo de banco de dados
-    snprintf(ctx->db_file_path, sizeof(ctx->db_file_path),
-             "%s/%s_%04d%02d%02d_%02d%02d%02d.db",
+    // Gerar nome do arquivo de log (nome fixo sem timestamp)
+    snprintf(ctx->log_file_path, sizeof(ctx->log_file_path),
+             "%s/%s.txt",
              DATALOGGER_LOG_DIR,
-             ctx->device_name,
-             tm_info->tm_year + 1900,
-             tm_info->tm_mon + 1,
-             tm_info->tm_mday,
-             tm_info->tm_hour,
-             tm_info->tm_min,
-             tm_info->tm_sec);
+             ctx->device_name);
+
+    // Gerar nome do arquivo de banco de dados (nome fixo sem timestamp)
+    snprintf(ctx->db_file_path, sizeof(ctx->db_file_path),
+             "%s/%s.db",
+             DATALOGGER_LOG_DIR,
+             ctx->device_name);
+
+    // Verificar se arquivo já existe e obter último número de registro
+    bool file_exists = (access(ctx->log_file_path, F_OK) == 0);
+    if (file_exists) {
+        ctx->record_counter = get_last_record_number(ctx->log_file_path);
+        printf("📊 Arquivo existente encontrado. Último registro: %u\n", ctx->record_counter);
+    } else {
+        ctx->record_counter = 0;
+        printf("📄 Criando novos arquivos de log\n");
+    }
     
-    // Abrir arquivo de log
-    ctx->log_file = fopen(ctx->log_file_path, "w");
+    // Abrir arquivo de log em modo append
+    ctx->log_file = fopen(ctx->log_file_path, "a");
     if (!ctx->log_file) {
-        fprintf(stderr, "Erro ao criar arquivo de log %s: %s\n", 
+        fprintf(stderr, "Erro ao abrir arquivo de log %s: %s\n",
                 ctx->log_file_path, strerror(errno));
         free(ctx);
         return NULL;
     }
-    
-    // Criar cabeçalho
-    if (!datalogger_create_header(ctx)) {
-        fclose(ctx->log_file);
-        free(ctx);
-        return NULL;
+
+    // Criar cabeçalho apenas se arquivo NÃO existia antes
+    if (!file_exists) {
+        printf("📝 Criando cabeçalho do arquivo TXT\n");
+        if (!datalogger_create_header(ctx)) {
+            fclose(ctx->log_file);
+            free(ctx);
+            return NULL;
+        }
+    } else {
+        printf("📝 Continuando gravação no arquivo TXT existente\n");
     }
 
     // Inicializar banco de dados

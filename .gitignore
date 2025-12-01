@@ -146,6 +146,7 @@ tramp
 .env
 .env.local
 config.local
+config.txt
 
 # Chaves SSH (caso sejam copiadas por engano)
 *.pem

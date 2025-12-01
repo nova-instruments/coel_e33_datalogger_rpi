@@ -61,10 +61,10 @@ add_library(relay_control STATIC lib/relay_control.c)
 add_library(reset_button STATIC lib/reset_button.c)
 
 # Executável principal
-add_executable(app src/main.c)
+add_executable(app_armv6 src/main.c)
 
 # Linking das bibliotecas
-target_link_libraries(app
+target_link_libraries(app_armv6
     modbus_lib
     datalogger_lib
     usb_manager

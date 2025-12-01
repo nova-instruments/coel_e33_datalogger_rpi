@@ -70,20 +70,21 @@ clean:
 rebuild: clean setup build
 
 deploy:
-	@echo "🚀 Fazendo deploy para Raspberry Pi..."
-	@if [ ! -f "$(BUILD_DIR)/bin/app" ]; then \
-		echo "❌ Executável não encontrado. Execute 'make build' primeiro."; \
+	@echo "🚀 Fazendo deploy para Raspberry Pi (ARMv7+)..."
+	@if [ ! -f "$(BUILD_DIR)/bin/app_armv7" ]; then \
+		echo "❌ Executável ARMv7 não encontrado. Execute 'make build' primeiro."; \
 		exit 1; \
 	fi
-	@chmod +x deploy_to_rpi.sh
-	@./deploy_to_rpi.sh $(RPI_IP) $(RPI_USER)
+	@echo "📤 Enviando arquivos para $(RPI_USER)@$(RPI_IP)..."
+	@scp $(BUILD_DIR)/bin/app_armv7 $(RPI_USER)@$(RPI_IP):~/app_armv7
+	@echo "✅ Deploy ARMv7 concluído!"
 
 test: check
 	@echo "🧪 Executando testes básicos..."
-	@if [ -f "$(BUILD_DIR)/bin/app" ]; then \
+	@if [ -f "$(BUILD_DIR)/bin/app_armv7" ]; then \
 		echo "✅ Executável existe"; \
-		file $(BUILD_DIR)/bin/app; \
-		ls -lh $(BUILD_DIR)/bin/app; \
+		file $(BUILD_DIR)/bin/app_armv7; \
+		ls -lh $(BUILD_DIR)/bin/app_armv7; \
 	else \
 		echo "❌ Executável não encontrado"; \
 		exit 1; \
@@ -151,15 +152,15 @@ clean-armv6:
 
 deploy-armv6:
 	@echo "🚀 Fazendo deploy para Raspberry Pi 1 (ARMv6)..."
-	@if [ ! -f "$(BUILD_DIR_ARMV6)/bin/app" ]; then \
+	@if [ ! -f "$(BUILD_DIR_ARMV6)/bin/app_armv6" ]; then \
 		echo "❌ Executável ARMv6 não encontrado. Execute 'make build-armv6' primeiro."; \
 		exit 1; \
 	fi
 	@echo "📤 Enviando arquivos para $(RPI_USER)@$(RPI_IP)..."
-	@scp $(BUILD_DIR_ARMV6)/bin/app $(RPI_USER)@$(RPI_IP):~/app_armv6
+	@scp $(BUILD_DIR_ARMV6)/bin/app_armv6 $(RPI_USER)@$(RPI_IP):~/app_armv6
 	@scp install_service.sh $(RPI_USER)@$(RPI_IP):~/install_service.sh
 	@scp uninstall_service.sh $(RPI_USER)@$(RPI_IP):~/uninstall_service.sh
-	@scp config.txt.example $(RPI_USER)@$(RPI_IP):~/config.txt.example
+	@scp config.txt $(RPI_USER)@$(RPI_IP):~/config.txt
 	@ssh $(RPI_USER)@$(RPI_IP) "chmod +x ~/install_service.sh ~/uninstall_service.sh"
 	@echo "✅ Deploy ARMv6 concluído!"
 	@echo ""
@@ -167,7 +168,7 @@ deploy-armv6:
 	@echo "  • app_armv6 (executável)"
 	@echo "  • install_service.sh (instalador do serviço)"
 	@echo "  • uninstall_service.sh (desinstalador do serviço)"
-	@echo "  • config.txt.example (exemplo de configuração)"
+	@echo "  • config.txt (arquivo de configuração)"
 	@echo ""
 	@echo "🎯 Para instalar como serviço:"
 	@echo "   ssh $(RPI_USER)@$(RPI_IP)"
@@ -189,11 +190,11 @@ info-armv6:
 	@echo "📡 Protocolo: Modbus RTU via RS-485"
 	@echo "🔧 Compilação: Estática (sem dependências externas)"
 	@echo ""
-	@if [ -f "$(BUILD_DIR_ARMV6)/bin/app" ]; then \
-		echo "📦 Executável ARMv6: ✅ $(BUILD_DIR_ARMV6)/bin/app"; \
-		echo "📏 Tamanho: $$(ls -lh $(BUILD_DIR_ARMV6)/bin/app | awk '{print $$5}')"; \
-		echo "🏗️  Arquitetura: $$(file $(BUILD_DIR_ARMV6)/bin/app | cut -d: -f2)"; \
-		echo "🔗 Linking: $$(file $(BUILD_DIR_ARMV6)/bin/app | grep -o 'statically linked' || echo 'dinamicamente linkado')"; \
+	@if [ -f "$(BUILD_DIR_ARMV6)/bin/app_armv6" ]; then \
+		echo "📦 Executável ARMv6: ✅ $(BUILD_DIR_ARMV6)/bin/app_armv6"; \
+		echo "📏 Tamanho: $$(ls -lh $(BUILD_DIR_ARMV6)/bin/app_armv6 | awk '{print $$5}')"; \
+		echo "🏗️  Arquitetura: $$(file $(BUILD_DIR_ARMV6)/bin/app_armv6 | cut -d: -f2)"; \
+		echo "🔗 Linking: $$(file $(BUILD_DIR_ARMV6)/bin/app_armv6 | grep -o 'statically linked' || echo 'dinamicamente linkado')"; \
 	else \
 		echo "📦 Executável ARMv6: ❌ Não compilado"; \
 	fi

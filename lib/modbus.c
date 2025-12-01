@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include <modbus/modbus.h>
 
 // Estrutura interna do contexto Modbus
@@ -114,12 +115,15 @@ bool modbus_read_all(modbus_context_t* ctx, modbus_data_t* data) {
 
     // Ler registrador 0x200 (Temperatura)
     data->valid_0x200 = modbus_read_register(ctx, MODBUS_ADDR_0x200, &data->addr_0x200);
+    usleep(100000);  // Delay de 100ms entre leituras
 
     // Ler registrador 0x214 (Alarmes)
     data->valid_0x214 = modbus_read_register(ctx, MODBUS_ADDR_0x214, &data->addr_0x214);
+    usleep(100000);  // Delay de 100ms entre leituras
 
     // Ler registrador 0x21F (Estado da porta)
     data->valid_0x21f = modbus_read_register(ctx, MODBUS_ADDR_0x21F, &data->addr_0x21f);
+    usleep(100000);  // Delay de 100ms entre leituras
 
     // Ler registrador 0x2803 (Setpoint)
     data->valid_0x2803 = modbus_read_register(ctx, MODBUS_ADDR_0x2803, &data->addr_0x2803);

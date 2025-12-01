@@ -276,6 +276,7 @@ make check
 - **Stop Bits**: 1
 - **Slave ID**: 1
 - **Timeout**: 500ms (resposta), 200ms (byte)
+- **Delay entre leituras**: 100ms (evita sobrecarga no barramento)
 - **Registradores**:
   - 0x200 (Temperatura)
   - 0x214 (Alarmes)
@@ -283,14 +284,15 @@ make check
   - 0x2803 (Setpoint)
 
 ### DataLogger
-- **Nome do dispositivo**: Configurável em `config.txt` (`DEVICE_NAME=NI00002`)
+- **Nome do dispositivo**: Configurável em `config.txt` (ex: `NI00002`)
 - **Diretório de logs**: `/home/nova/`
-- **Formatos de arquivo**:
-  - **TXT**: `NOME_YYYYMMDD_HHMMSS.txt` (Temperatura e Porta)
-  - **SQLite**: `NOME_YYYYMMDD_HHMMSS.db` (Temperatura, Setpoint, Alarme, Porta)
+- **Formatos de arquivo** (nome fixo para continuidade):
+  - **TXT**: `NOME.txt` (Temperatura e Porta)
+  - **SQLite**: `NOME.db` (Temperatura, Setpoint, Alarme, Porta)
 - **Modo de logging**:
   - **Periódico**: A cada 5 minutos (300 segundos)
   - **Imediato**: Quando detecta mudança de estado da porta ou alarme
+- **Continuidade**: Ao reiniciar, continua gravando nos mesmos arquivos
 - **Estrutura do banco SQLite**:
   - **Tabela DataGrpData**: IndexID, CollectTime, Tprincipal, Setpoint, Alarme, Porta
   - **Tabela DBInfo**: Metadados do banco (versão, IDs, timestamps)
@@ -341,7 +343,7 @@ Onde:
 ```
 
 #### 📁 Exemplo de Arquivo Gerado
-**Arquivo:** `/home/nova/NI00002_20240915_160000.txt`
+**Arquivo:** `/home/nova/NI00002.txt` (nome fixo, continua crescendo)
 
 ## 🔊 Sinalização Sonora (Buzzer)
 
@@ -407,9 +409,15 @@ GND     (Pino 20) ──── GND
 O nome do dispositivo é configurado através do arquivo `config.txt` no mesmo diretório do executável:
 
 ```bash
-# Criar arquivo de configuração
-echo "DEVICE_NAME=NI00003" > config.txt
+# Criar arquivo de configuração (uma linha com o nome do dispositivo)
+echo "NI00003" > config.txt
 ```
+
+**Formato do arquivo:**
+- Uma única linha contendo o nome do dispositivo
+- Sem prefixos ou sufixos (ex: `NI00002`, não `DEVICE_NAME=NI00002`)
+- Máximo 32 caracteres
+- Sem espaços ou caracteres especiais
 
 Se o arquivo não existir, o sistema usa o nome padrão `NI00002`.
 
