@@ -813,17 +813,6 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
     }
 
     if (callbacks && callbacks->on_progress) {
-        callbacks->on_progress(25, "Limpando arquivos antigos do pen drive...");
-    }
-
-    // Limpar arquivos de banco antigos do pen drive (apenas NI*.db)
-    char cleanup_command[1024];
-    snprintf(cleanup_command, sizeof(cleanup_command),
-             "find \"%s\" -name \"NI*.db\" -type f -delete 2>/dev/null",
-             usb_device->mount_point);
-    system(cleanup_command);
-
-    if (callbacks && callbacks->on_progress) {
         callbacks->on_progress(30, "Copiando bancos de dados...");
     }
 

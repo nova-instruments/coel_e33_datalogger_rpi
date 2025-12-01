@@ -428,12 +428,11 @@ Se o arquivo não existir, o sistema usa o nome padrão `NI00002`.
 1. **🔍 Monitoramento Contínuo**: A aplicação monitora continuamente a inserção de pen drives
 2. **🔌 Detecção Automática**: Quando um pen drive é inserido, é detectado automaticamente
 3. **📁 Montagem**: O pen drive é montado automaticamente no sistema
-4. **🧹 Limpeza**: Remove arquivos de log antigos do pen drive (se existirem)
-5. **📋 Cópia**: Apenas bancos de dados do DataLogger (`NI*.db`) são copiados para o pen drive
-6. **💾 Sincronização**: Os dados são sincronizados para garantir integridade
-7. **⏏️ Ejeção**: O pen drive é desmontado automaticamente após a cópia
-8. **🔊 Sinalização**: Buzzer emite 3 beeps curtos para confirmar sucesso
-9. **✅ Finalização**: Pen drive pode ser removido com segurança
+4. **📋 Cópia**: Bancos de dados do DataLogger (`NI*.db`) são copiados para o pen drive (sobrescreve se já existir)
+5. **💾 Sincronização**: Os dados são sincronizados para garantir integridade
+6. **⏏️ Ejeção**: O pen drive é desmontado automaticamente após a cópia
+7. **🔊 Sinalização**: Buzzer emite 3 beeps curtos para confirmar sucesso
+8. **✅ Finalização**: Pen drive pode ser removido com segurança
 
 ### **Processo Automático:**
 
@@ -444,9 +443,7 @@ Se o arquivo não existir, o sistema usa o nome padrão `NI00002`.
     ↓
 📁 Montagem automática
     ↓
-🧹 Limpando arquivos antigos...
-    ↓
-📋 Copiando arquivos NI*.txt...
+📋 Copiando bancos de dados NI*.db...
     ↓
 💾 Sincronizando dados...
     ↓
@@ -463,8 +460,7 @@ Se o arquivo não existir, o sistema usa o nome padrão `NI00002`.
 ```
 🔌 Pen drive detectado! Iniciando extração automática...
 📦 USB [20%]: Montando dispositivo USB...
-📦 USB [30%]: Limpando arquivos antigos...
-📦 USB [50%]: Copiando bancos de dados...
+📦 USB [30%]: Copiando bancos de dados...
 📦 USB [80%]: Sincronizando dados... (3 bancos copiados)
 📦 USB [90%]: Desmontando dispositivo USB...
 ✅ USB: 3 bancos de dados extraídos com sucesso para USB
@@ -480,11 +476,12 @@ Se o arquivo não existir, o sistema usa o nome padrão `NI00002`.
 - **✅ Sem intervenção**: Processo completamente automático
 - **✅ Seguro**: Desmontagem correta antes da remoção
 - **✅ Filtro inteligente**: Copia apenas bancos de dados do DataLogger (`NI*.db`)
-- **✅ Limpeza automática**: Remove bancos antigos do pen drive antes da cópia
+- **✅ Sobrescrita inteligente**: Mantém sempre a versão mais recente (sobrescreve arquivos existentes)
 - **✅ Contagem de arquivos**: Mostra quantos bancos foram copiados
 - **✅ Sinalização sonora**: Buzzer confirma sucesso com 3 beeps (GPIO23)
 - **✅ Reutilizável**: Funciona com qualquer pen drive
 - **✅ Paralelo**: Não interfere no logging principal
+- **✅ Preserva outros arquivos**: Não apaga arquivos existentes no pen drive
 
 ## 📄 Licença
 
