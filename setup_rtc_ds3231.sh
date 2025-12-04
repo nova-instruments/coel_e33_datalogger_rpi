@@ -100,13 +100,24 @@ fi
 # 4. Detectar DS3231 no barramento I2C
 # ============================================================================
 log_info "Detectando DS3231 no barramento I2C (endereço 0x68)..."
-if i2cdetect -y 1 | grep -q " 68 "; then
-    log_success "DS3231 detectado no endereço 0x68"
+
+# Capturar saída do i2cdetect
+I2C_OUTPUT=$(i2cdetect -y 1)
+
+# Verificar se DS3231 está presente (68 ou UU)
+# UU = driver do kernel já está usando o dispositivo (correto!)
+# 68 = dispositivo detectado mas driver não carregado
+if echo "$I2C_OUTPUT" | grep -qE " (68|UU) "; then
+    if echo "$I2C_OUTPUT" | grep -q " UU "; then
+        log_success "DS3231 detectado no endereço 0x68 (driver já carregado - UU)"
+    else
+        log_success "DS3231 detectado no endereço 0x68"
+    fi
 else
     log_error "DS3231 NÃO detectado no endereço 0x68!"
     log_error "Verifique as conexões do módulo"
     log_info "Saída do i2cdetect:"
-    i2cdetect -y 1
+    echo "$I2C_OUTPUT"
     exit 1
 fi
 
