@@ -1023,3 +1023,20 @@ void buzzer_signal_extraction_complete(void) {
 
     printf("🔊 Sinalização sonora concluída\n");
 }
+
+/**
+ * @brief Toca o buzzer para sinalizar erro de comunicação Modbus
+ * Executa 1 beep longo (500ms)
+ */
+void buzzer_signal_modbus_error(void) {
+    if (!buzzer_line) {
+        // Não exibir mensagem para não poluir o log
+        return;
+    }
+
+    // 1 beep longo para indicar erro
+    gpiod_line_set_value(buzzer_line, 1);
+    usleep(500000); // 500ms ligado
+
+    gpiod_line_set_value(buzzer_line, 0);
+}

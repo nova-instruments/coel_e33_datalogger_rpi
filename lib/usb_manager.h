@@ -102,6 +102,12 @@ void buzzer_cleanup(void);
  */
 void buzzer_signal_extraction_complete(void);
 
+/**
+ * @brief Toca o buzzer para sinalizar erro de comunicação Modbus
+ * Executa 1 beep longo (500ms)
+ */
+void buzzer_signal_modbus_error(void);
+
 #ifdef __cplusplus
 }
 #endif

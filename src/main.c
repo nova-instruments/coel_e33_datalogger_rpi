@@ -4,6 +4,14 @@
  * @author Nova Instruments
  */
 
+/* Upgrades
+
+- Oled
+- Botao p/ temporização de lampada
+- Minima e maxima no datalogger
+- 
+
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -288,6 +296,8 @@ int main(void) {
         printf("Lendo registradores Modbus...\n");
 
         if (modbus_read_all(modbus_ctx, &data)) {
+            // ✅ LEITURA BEM-SUCEDIDA - Processar dados normalmente
+
             // Exibir dados na tela
             modbus_print_data(&data);
 
@@ -343,7 +353,7 @@ int main(void) {
                 printf("⏰ Log periódico (5 minutos)\n");
             }
 
-            // Registrar no datalogger se necessário
+            // ✅ GRAVAR NO DATALOGGER (apenas quando leitura foi bem-sucedida)
             if (should_log) {
                 if (datalogger_log_data(datalogger_ctx, &data)) {
                     if (is_door_change) {
@@ -361,10 +371,12 @@ int main(void) {
             }
 
         } else {
-            printf("❌ Erro: Falha na leitura de todos os registradores\n");
+            // ❌ ERRO NA LEITURA MODBUS
+            printf("❌ Erro: Falha na leitura de todos os registradores Modbus\n");
+            printf("⚠️  NÃO será gravado no datalogger (dados inválidos)\n");
 
-            // Mesmo com erro, tentar registrar no log para manter histórico
-            datalogger_log_data(datalogger_ctx, &data);
+            // 🔊 Emitir alarme sonoro de erro (1 beep longo)
+            buzzer_signal_modbus_error();
         }
 
         printf("----------------------------------------\n");
