@@ -29,7 +29,7 @@
 // Configurações da aplicação
 #define LOOP_INTERVAL_SECONDS 300  // 5 minutos = 300 segundos
 #define DEFAULT_DEVICE_NAME "NI00002"  // Nome padrão do dispositivo
-#define CONFIG_FILE "config.txt"  // Arquivo de configuração
+#define CONFIG_FILE "/boot/firmware/config.txt"  // Arquivo de configuração do sistema
 
 // Variável global para controle do loop principal
 static volatile bool running = true;
@@ -41,7 +41,8 @@ typedef struct {
 } usb_thread_data_t;
 
 /**
- * @brief Lê o nome do dispositivo do arquivo de configuração
+ * @brief Lê o nome do dispositivo do final do arquivo /boot/firmware/config.txt
+ * Procura por uma linha começando com "DEVICE_NAME=" no final do arquivo
  * @param device_name Buffer para armazenar o nome do dispositivo
  * @param buffer_size Tamanho do buffer
  * @return true se leu com sucesso, false caso contrário
@@ -50,12 +51,16 @@ static bool read_device_name_from_config(char* device_name, size_t buffer_size) 
     FILE* config_file = fopen(CONFIG_FILE, "r");
     if (!config_file) {
         fprintf(stderr, "⚠️  Arquivo de configuração '%s' não encontrado\n", CONFIG_FILE);
+        fprintf(stderr, "⚠️  Usando nome padrão: %s\n", DEFAULT_DEVICE_NAME);
         return false;
     }
 
     char line[256];
     bool found = false;
+    char last_device_name[256] = {0};
 
+    // Ler todo o arquivo procurando por "DEVICE_NAME="
+    // Se houver múltiplas ocorrências, a última prevalece
     while (fgets(line, sizeof(line), config_file)) {
         // Remover espaços em branco no início
         char* start = line;
@@ -76,18 +81,25 @@ static bool read_device_name_from_config(char* device_name, size_t buffer_size) 
                 len--;
             }
 
-            // Copiar valor se não estiver vazio
-            if (len > 0 && len < buffer_size) {
-                strncpy(device_name, value, buffer_size - 1);
-                device_name[buffer_size - 1] = '\0';
+            // Armazenar valor se não estiver vazio
+            if (len > 0 && len < sizeof(last_device_name)) {
+                strncpy(last_device_name, value, sizeof(last_device_name) - 1);
+                last_device_name[sizeof(last_device_name) - 1] = '\0';
                 found = true;
-                break;
             }
         }
     }
 
     fclose(config_file);
-    return found;
+
+    // Copiar o último valor encontrado para o buffer de saída
+    if (found && strlen(last_device_name) < buffer_size) {
+        strncpy(device_name, last_device_name, buffer_size - 1);
+        device_name[buffer_size - 1] = '\0';
+        return true;
+    }
+
+    return false;
 }
 
 /**

@@ -18,7 +18,7 @@ Este projeto implementa um datalogger que realiza leitura de registradores Modbu
 - 🔌 **Extração automática via pen drive** com monitoramento contínuo
 - 🔊 **Sinalização sonora** via buzzer no GPIO23 ao finalizar extração
 - 💡 **Controle de relés**: Lâmpada (GPIO24) e Discadora (GPIO25)
-- ⚙️ **Configuração via arquivo**: Nome do dispositivo em `config.txt`
+- ⚙️ **Configuração via arquivo**: Nome do dispositivo em `/boot/firmware/config.txt`
 - 🚀 **Serviço systemd**: Instalação automática para inicialização no boot
 - 📱 **Deploy automatizado** via SSH
 - 💾 **Armazenamento local** em `/home/nova/`
@@ -284,7 +284,7 @@ make check
   - 0x2803 (Setpoint)
 
 ### DataLogger
-- **Nome do dispositivo**: Configurável em `config.txt` (ex: `NI00002`)
+- **Nome do dispositivo**: Configurável em `/boot/firmware/config.txt` (ex: `NI00002`)
 - **Diretório de logs**: `/home/nova/`
 - **Formatos de arquivo** (nome fixo para continuidade):
   - **TXT**: `NOME.txt` (Temperatura e Porta)
@@ -406,20 +406,47 @@ GND     (Pino 20) ──── GND
 
 ## ⚙️ Configuração do Dispositivo
 
-O nome do dispositivo é configurado através do arquivo `config.txt` no mesmo diretório do executável:
+O nome do dispositivo é configurado através do arquivo `/boot/firmware/config.txt` (arquivo de configuração do sistema Raspberry Pi).
+
+### **Como Configurar:**
+
+Adicione a seguinte linha **no final** do arquivo `/boot/firmware/config.txt`:
 
 ```bash
-# Criar arquivo de configuração (uma linha com o nome do dispositivo)
-echo "NI00003" > config.txt
+# Editar arquivo de configuração (requer sudo)
+sudo nano /boot/firmware/config.txt
+
+# Adicionar no final do arquivo:
+DEVICE_NAME=NI00003
 ```
 
-**Formato do arquivo:**
-- Uma única linha contendo o nome do dispositivo
-- Sem prefixos ou sufixos (ex: `NI00002`, não `DEVICE_NAME=NI00002`)
+**Formato:**
+- Linha no formato: `DEVICE_NAME=NomeDoDispositivo`
 - Máximo 32 caracteres
-- Sem espaços ou caracteres especiais
+- Sem espaços ou caracteres especiais no nome
+- Se houver múltiplas linhas `DEVICE_NAME=`, a **última** prevalece
 
-Se o arquivo não existir, o sistema usa o nome padrão `NI00002`.
+**Exemplo de `/boot/firmware/config.txt`:**
+```
+# ... outras configurações do Raspberry Pi ...
+enable_uart=1
+dtoverlay=disable-bt
+dtparam=i2c_arm=on
+dtoverlay=i2c-rtc,ds3231
+
+# Nome do dispositivo DataLogger (adicionar no final)
+DEVICE_NAME=NI00003
+```
+
+**Se a configuração não existir:**
+- O sistema usará o nome padrão: `NI00002`
+- Os arquivos de log serão criados com esse nome padrão
+
+**Vantagens dessa abordagem:**
+- ✅ Configuração centralizada no arquivo do sistema
+- ✅ Não precisa criar arquivo separado
+- ✅ Persiste entre atualizações do software
+- ✅ Fácil de editar via SSH ou interface gráfica
 
 ## 🔌 Extração Automática via Pen Drive
 
