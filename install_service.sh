@@ -20,7 +20,7 @@ NC='\033[0m' # No Color
 SERVICE_NAME="coel-datalogger"
 APP_NAME="app_armv6"
 INSTALL_DIR="/opt/coel-datalogger"
-CONFIG_FILE="config.txt"
+SYSTEM_CONFIG_FILE="/boot/firmware/config.txt"
 
 echo -e "${BLUE}=== Instalador do Serviço COEL E33 DataLogger ===${NC}"
 echo -e "${BLUE}Nova Instruments${NC}\n"
@@ -61,13 +61,19 @@ echo -e "${BLUE}📦 Copiando executável...${NC}"
 cp -f ./$APP_NAME $INSTALL_DIR/$APP_NAME
 chmod +x $INSTALL_DIR/$APP_NAME
 
-# Copiar ou criar arquivo de configuração
-if [ -f "./$CONFIG_FILE" ]; then
-    echo -e "${GREEN}✅ Copiando arquivo de configuração existente${NC}"
-    cp -f ./$CONFIG_FILE $INSTALL_DIR/$CONFIG_FILE
+# Verificar configuração do dispositivo em /boot/firmware/config.txt
+echo -e "${BLUE}🔍 Verificando configuração do dispositivo...${NC}"
+if [ -f "$SYSTEM_CONFIG_FILE" ]; then
+    if grep -q "^DEVICE_NAME=" "$SYSTEM_CONFIG_FILE"; then
+        DEVICE_NAME=$(grep "^DEVICE_NAME=" "$SYSTEM_CONFIG_FILE" | tail -n 1 | cut -d'=' -f2)
+        echo -e "${GREEN}✅ Nome do dispositivo encontrado: $DEVICE_NAME${NC}"
+    else
+        echo -e "${YELLOW}⚠️  DEVICE_NAME não encontrado em $SYSTEM_CONFIG_FILE${NC}"
+        echo -e "${YELLOW}   Adicione a linha 'DEVICE_NAME=NI00002' no final do arquivo${NC}"
+        echo -e "${YELLOW}   Comando: sudo nano $SYSTEM_CONFIG_FILE${NC}"
+    fi
 else
-    echo -e "${YELLOW}⚠️  Arquivo de configuração não encontrado, criando padrão${NC}"
-    echo "DEVICE_NAME=NI00002" > $INSTALL_DIR/$CONFIG_FILE
+    echo -e "${RED}❌ Arquivo $SYSTEM_CONFIG_FILE não encontrado${NC}"
 fi
 
 # Criar arquivo de serviço systemd
@@ -136,9 +142,10 @@ echo -e "  ${YELLOW}Desabilitar serviço:${NC} sudo systemctl disable $SERVICE_N
 
 echo -e "\n${BLUE}📁 Arquivos instalados em:${NC} $INSTALL_DIR"
 echo -e "  ${YELLOW}Executável:${NC}     $INSTALL_DIR/$APP_NAME"
-echo -e "  ${YELLOW}Configuração:${NC}  $INSTALL_DIR/$CONFIG_FILE"
 
-echo -e "\n${BLUE}💡 Dica:${NC} Para editar o nome do dispositivo, edite o arquivo:"
-echo -e "  ${YELLOW}sudo nano $INSTALL_DIR/$CONFIG_FILE${NC}"
+echo -e "\n${BLUE}💡 Configuração do Dispositivo:${NC}"
+echo -e "  O nome do dispositivo é configurado em: ${YELLOW}$SYSTEM_CONFIG_FILE${NC}"
+echo -e "  Adicione no final do arquivo: ${YELLOW}DEVICE_NAME=NI00003${NC}"
+echo -e "  Comando para editar: ${YELLOW}sudo nano $SYSTEM_CONFIG_FILE${NC}"
 echo -e "  Depois reinicie o serviço: ${YELLOW}sudo systemctl restart $SERVICE_NAME${NC}\n"
 

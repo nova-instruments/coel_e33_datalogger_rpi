@@ -71,3 +71,7 @@ echo -e "\n${GREEN}╔═══════════════════�
 echo -e "${GREEN}║  ✅ Desinstalação concluída com sucesso!                   ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}\n"
 
+echo -e "${BLUE}💡 Nota:${NC} A configuração do dispositivo permanece em:"
+echo -e "  ${YELLOW}/boot/firmware/config.txt${NC}"
+echo -e "  (linha DEVICE_NAME= não foi removida)\n"
+
