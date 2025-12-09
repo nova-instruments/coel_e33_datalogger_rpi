@@ -248,9 +248,11 @@ bool datalogger_write_record(datalogger_context_t* ctx, const datalogger_record_
     strftime(datetime_str, sizeof(datetime_str), "%d/%m/%Y %H:%M:%S", &record->timestamp);
     
     // Formatar temperatura (dividir por 10 para obter valor real)
+    // Interpretar como signed int16 para suportar temperaturas negativas
     char temp_str[16];
     if (record->temp_valid) {
-        float temp_celsius = record->temperature / 10.0f;
+        int16_t temp_raw = (int16_t)record->temperature;
+        float temp_celsius = temp_raw / 10.0f;
         snprintf(temp_str, sizeof(temp_str), "%.1f", temp_celsius);
     } else {
         strcpy(temp_str, "ERROR");
@@ -452,16 +454,20 @@ bool datalogger_convert_to_db_record(const datalogger_record_t* txt_record,
     db_record->CollectTime = (long long)timestamp * 1000;
 
     // Converter temperatura (dividir por 10 e arredondar para 2 casas decimais)
+    // Interpretar como signed int16 para suportar temperaturas negativas
     if (txt_record->temp_valid) {
-        float temp_celsius = txt_record->temperature / 10.0f;
+        int16_t temp_raw = (int16_t)txt_record->temperature;
+        float temp_celsius = temp_raw / 10.0f;
         db_record->Tprincipal = roundf(temp_celsius * 100.0f) / 100.0f;  // 2 casas decimais
     } else {
         db_record->Tprincipal = 0.0f;  // Valor padrão para erro
     }
 
     // Converter setpoint (dividir por 10 e arredondar para 2 casas decimais)
+    // Interpretar como signed int16 para suportar setpoints negativos
     if (txt_record->setpoint_valid) {
-        float setpoint_celsius = txt_record->setpoint / 10.0f;
+        int16_t setpoint_raw = (int16_t)txt_record->setpoint;
+        float setpoint_celsius = setpoint_raw / 10.0f;
         db_record->Setpoint = roundf(setpoint_celsius * 100.0f) / 100.0f;  // 2 casas decimais
     } else {
         db_record->Setpoint = 0.0f;  // Valor padrão para erro

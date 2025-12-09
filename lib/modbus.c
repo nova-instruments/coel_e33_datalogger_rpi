@@ -161,9 +161,11 @@ void modbus_print_data(const modbus_data_t* data) {
     printf("Dados lidos:\n");
 
     if (data->valid_0x200) {
-        float temp_celsius = data->addr_0x200 / 10.0f;
-        printf("  Endereço 0x200 (Temperatura): %u (0x%04X) = %.1f°C\n",
-               data->addr_0x200, data->addr_0x200, temp_celsius);
+        // Interpretar como signed int16 (complemento de dois) para suportar temperaturas negativas
+        int16_t temp_raw = (int16_t)data->addr_0x200;
+        float temp_celsius = temp_raw / 10.0f;
+        printf("  Endereço 0x200 (Temperatura): %d (0x%04X) = %.1f°C\n",
+               temp_raw, data->addr_0x200, temp_celsius);
     } else {
         printf("  Endereço 0x200 (Temperatura): ERRO na leitura\n");
     }
@@ -185,9 +187,11 @@ void modbus_print_data(const modbus_data_t* data) {
     }
 
     if (data->valid_0x2803) {
-        float setpoint_celsius = data->addr_0x2803 / 10.0f;
-        printf("  Endereço 0x2803 (Setpoint): %u (0x%04X) = %.1f°C\n",
-               data->addr_0x2803, data->addr_0x2803, setpoint_celsius);
+        // Interpretar como signed int16 (complemento de dois) para suportar setpoints negativos
+        int16_t setpoint_raw = (int16_t)data->addr_0x2803;
+        float setpoint_celsius = setpoint_raw / 10.0f;
+        printf("  Endereço 0x2803 (Setpoint): %d (0x%04X) = %.1f°C\n",
+               setpoint_raw, data->addr_0x2803, setpoint_celsius);
     } else {
         printf("  Endereço 0x2803 (Setpoint): ERRO na leitura\n");
     }
