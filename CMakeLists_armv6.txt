@@ -59,6 +59,7 @@ add_library(datalogger_lib STATIC lib/datalogger.c)
 add_library(usb_manager STATIC lib/usb_manager.c)
 add_library(relay_control STATIC lib/relay_control.c)
 add_library(reset_button STATIC lib/reset_button.c)
+add_library(oled_ssd1306 STATIC lib/oled_ssd1306.c)
 
 # Executável principal
 add_executable(app_armv6 src/main.c)
@@ -70,6 +71,7 @@ target_link_libraries(app_armv6
     usb_manager
     relay_control
     reset_button
+    oled_ssd1306
     modbus
     gpiod
     udev

@@ -1,0 +1,423 @@
+/**
+ * @file oled_ssd1306.c
+ * @brief COEL E33 DataLogger - OLED SSD1306 Display Implementation
+ * @author Nova Instruments
+ */
+
+#include "oled_ssd1306.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/i2c-dev.h>
+#include <time.h>
+
+// Fonte 8x8 básica (ASCII 32-127)
+static const uint8_t font_8x8[][8] = {
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // ' ' (32)
+    {0x00, 0x00, 0x5F, 0x00, 0x00, 0x00, 0x00, 0x00}, // '!' (33)
+    {0x00, 0x07, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00}, // '"' (34)
+    {0x14, 0x7F, 0x14, 0x7F, 0x14, 0x00, 0x00, 0x00}, // '#' (35)
+    {0x24, 0x2A, 0x7F, 0x2A, 0x12, 0x00, 0x00, 0x00}, // '$' (36)
+    {0x23, 0x13, 0x08, 0x64, 0x62, 0x00, 0x00, 0x00}, // '%' (37)
+    {0x36, 0x49, 0x56, 0x20, 0x50, 0x00, 0x00, 0x00}, // '&' (38)
+    {0x00, 0x08, 0x07, 0x03, 0x00, 0x00, 0x00, 0x00}, // ''' (39)
+    {0x00, 0x1C, 0x22, 0x41, 0x00, 0x00, 0x00, 0x00}, // '(' (40)
+    {0x00, 0x41, 0x22, 0x1C, 0x00, 0x00, 0x00, 0x00}, // ')' (41)
+    {0x2A, 0x1C, 0x7F, 0x1C, 0x2A, 0x00, 0x00, 0x00}, // '*' (42)
+    {0x08, 0x08, 0x3E, 0x08, 0x08, 0x00, 0x00, 0x00}, // '+' (43)
+    {0x00, 0x80, 0x70, 0x30, 0x00, 0x00, 0x00, 0x00}, // ',' (44)
+    {0x08, 0x08, 0x08, 0x08, 0x08, 0x00, 0x00, 0x00}, // '-' (45)
+    {0x00, 0x00, 0x60, 0x60, 0x00, 0x00, 0x00, 0x00}, // '.' (46)
+    {0x20, 0x10, 0x08, 0x04, 0x02, 0x00, 0x00, 0x00}, // '/' (47)
+    {0x3E, 0x51, 0x49, 0x45, 0x3E, 0x00, 0x00, 0x00}, // '0' (48)
+    {0x00, 0x42, 0x7F, 0x40, 0x00, 0x00, 0x00, 0x00}, // '1' (49)
+    {0x72, 0x49, 0x49, 0x49, 0x46, 0x00, 0x00, 0x00}, // '2' (50)
+    {0x21, 0x41, 0x49, 0x4D, 0x33, 0x00, 0x00, 0x00}, // '3' (51)
+    {0x18, 0x14, 0x12, 0x7F, 0x10, 0x00, 0x00, 0x00}, // '4' (52)
+    {0x27, 0x45, 0x45, 0x45, 0x39, 0x00, 0x00, 0x00}, // '5' (53)
+    {0x3C, 0x4A, 0x49, 0x49, 0x31, 0x00, 0x00, 0x00}, // '6' (54)
+    {0x41, 0x21, 0x11, 0x09, 0x07, 0x00, 0x00, 0x00}, // '7' (55)
+    {0x36, 0x49, 0x49, 0x49, 0x36, 0x00, 0x00, 0x00}, // '8' (56)
+    {0x46, 0x49, 0x49, 0x29, 0x1E, 0x00, 0x00, 0x00}, // '9' (57)
+    {0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00}, // ':' (58)
+    {0x00, 0x40, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00}, // ';' (59)
+    {0x00, 0x08, 0x14, 0x22, 0x41, 0x00, 0x00, 0x00}, // '<' (60)
+    {0x14, 0x14, 0x14, 0x14, 0x14, 0x00, 0x00, 0x00}, // '=' (61)
+    {0x00, 0x41, 0x22, 0x14, 0x08, 0x00, 0x00, 0x00}, // '>' (62)
+    {0x02, 0x01, 0x59, 0x09, 0x06, 0x00, 0x00, 0x00}, // '?' (63)
+    {0x3E, 0x41, 0x5D, 0x59, 0x4E, 0x00, 0x00, 0x00}, // '@' (64)
+    {0x7C, 0x12, 0x11, 0x12, 0x7C, 0x00, 0x00, 0x00}, // 'A' (65)
+    {0x7F, 0x49, 0x49, 0x49, 0x36, 0x00, 0x00, 0x00}, // 'B' (66)
+    {0x3E, 0x41, 0x41, 0x41, 0x22, 0x00, 0x00, 0x00}, // 'C' (67)
+    {0x7F, 0x41, 0x41, 0x41, 0x3E, 0x00, 0x00, 0x00}, // 'D' (68)
+    {0x7F, 0x49, 0x49, 0x49, 0x41, 0x00, 0x00, 0x00}, // 'E' (69)
+    {0x7F, 0x09, 0x09, 0x09, 0x01, 0x00, 0x00, 0x00}, // 'F' (70)
+    {0x3E, 0x41, 0x49, 0x49, 0x7A, 0x00, 0x00, 0x00}, // 'G' (71)
+    {0x7F, 0x08, 0x08, 0x08, 0x7F, 0x00, 0x00, 0x00}, // 'H' (72)
+    {0x00, 0x41, 0x7F, 0x41, 0x00, 0x00, 0x00, 0x00}, // 'I' (73)
+    {0x20, 0x40, 0x41, 0x3F, 0x01, 0x00, 0x00, 0x00}, // 'J' (74)
+    {0x7F, 0x08, 0x14, 0x22, 0x41, 0x00, 0x00, 0x00}, // 'K' (75)
+    {0x7F, 0x40, 0x40, 0x40, 0x40, 0x00, 0x00, 0x00}, // 'L' (76)
+    {0x7F, 0x02, 0x1C, 0x02, 0x7F, 0x00, 0x00, 0x00}, // 'M' (77)
+    {0x7F, 0x04, 0x08, 0x10, 0x7F, 0x00, 0x00, 0x00}, // 'N' (78)
+    {0x3E, 0x41, 0x41, 0x41, 0x3E, 0x00, 0x00, 0x00}, // 'O' (79)
+    {0x7F, 0x09, 0x09, 0x09, 0x06, 0x00, 0x00, 0x00}, // 'P' (80)
+    {0x3E, 0x41, 0x51, 0x21, 0x5E, 0x00, 0x00, 0x00}, // 'Q' (81)
+    {0x7F, 0x09, 0x19, 0x29, 0x46, 0x00, 0x00, 0x00}, // 'R' (82)
+    {0x26, 0x49, 0x49, 0x49, 0x32, 0x00, 0x00, 0x00}, // 'S' (83)
+    {0x03, 0x01, 0x7F, 0x01, 0x03, 0x00, 0x00, 0x00}, // 'T' (84)
+    {0x3F, 0x40, 0x40, 0x40, 0x3F, 0x00, 0x00, 0x00}, // 'U' (85)
+    {0x1F, 0x20, 0x40, 0x20, 0x1F, 0x00, 0x00, 0x00}, // 'V' (86)
+    {0x3F, 0x40, 0x38, 0x40, 0x3F, 0x00, 0x00, 0x00}, // 'W' (87)
+    {0x63, 0x14, 0x08, 0x14, 0x63, 0x00, 0x00, 0x00}, // 'X' (88)
+    {0x03, 0x04, 0x78, 0x04, 0x03, 0x00, 0x00, 0x00}, // 'Y' (89)
+    {0x61, 0x59, 0x49, 0x4D, 0x43, 0x00, 0x00, 0x00}, // 'Z' (90)
+    {0x00, 0x7F, 0x41, 0x41, 0x41, 0x00, 0x00, 0x00}, // '[' (91)
+    {0x02, 0x04, 0x08, 0x10, 0x20, 0x00, 0x00, 0x00}, // '\' (92)
+    {0x00, 0x41, 0x41, 0x41, 0x7F, 0x00, 0x00, 0x00}, // ']' (93)
+    {0x04, 0x02, 0x01, 0x02, 0x04, 0x00, 0x00, 0x00}, // '^' (94)
+    {0x40, 0x40, 0x40, 0x40, 0x40, 0x00, 0x00, 0x00}, // '_' (95)
+};
+
+/**
+ * @brief Envia um comando para o display
+ */
+static bool oled_send_command(oled_context_t* ctx, uint8_t cmd) {
+    if (!ctx || ctx->i2c_fd < 0) return false;
+    
+    uint8_t buffer[2] = {0x00, cmd};  // 0x00 = Co=0, D/C=0 (comando)
+    if (write(ctx->i2c_fd, buffer, 2) != 2) {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Envia dados para o display
+ */
+static bool oled_send_data(oled_context_t* ctx, const uint8_t* data, size_t len) {
+    if (!ctx || ctx->i2c_fd < 0 || !data) return false;
+    
+    uint8_t buffer[len + 1];
+    buffer[0] = 0x40;  // 0x40 = Co=0, D/C=1 (dados)
+    memcpy(buffer + 1, data, len);
+    
+    if (write(ctx->i2c_fd, buffer, len + 1) != (ssize_t)(len + 1)) {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Inicializa o display OLED SSD1306
+ */
+oled_context_t* oled_init(void) {
+    oled_context_t* ctx = malloc(sizeof(oled_context_t));
+    if (!ctx) {
+        fprintf(stderr, "❌ Erro ao alocar memória para contexto OLED\n");
+        return NULL;
+    }
+    
+    memset(ctx, 0, sizeof(oled_context_t));
+    ctx->address = OLED_I2C_ADDRESS;
+    ctx->i2c_fd = -1;
+    
+    // Abrir barramento I2C
+    char i2c_device[20];
+    snprintf(i2c_device, sizeof(i2c_device), "/dev/i2c-%d", OLED_I2C_BUS);
+    
+    ctx->i2c_fd = open(i2c_device, O_RDWR);
+    if (ctx->i2c_fd < 0) {
+        fprintf(stderr, "❌ Erro ao abrir %s\n", i2c_device);
+        free(ctx);
+        return NULL;
+    }
+
+    // Configurar endereço I2C do dispositivo
+    if (ioctl(ctx->i2c_fd, I2C_SLAVE, ctx->address) < 0) {
+        fprintf(stderr, "❌ Erro ao configurar endereço I2C 0x%02X\n", ctx->address);
+        close(ctx->i2c_fd);
+        free(ctx);
+        return NULL;
+    }
+
+    // Sequência de inicialização do SSD1306
+    oled_send_command(ctx, OLED_CMD_DISPLAY_OFF);
+    oled_send_command(ctx, OLED_CMD_SET_DISPLAY_CLK_DIV);
+    oled_send_command(ctx, 0x80);  // Valor sugerido
+    oled_send_command(ctx, OLED_CMD_SET_MULTIPLEX);
+    oled_send_command(ctx, OLED_HEIGHT - 1);
+    oled_send_command(ctx, OLED_CMD_SET_DISPLAY_OFFSET);
+    oled_send_command(ctx, 0x00);  // Sem offset
+    oled_send_command(ctx, OLED_CMD_SET_START_LINE | 0x00);
+    oled_send_command(ctx, OLED_CMD_CHARGE_PUMP);
+    oled_send_command(ctx, 0x14);  // Habilitar charge pump
+    oled_send_command(ctx, OLED_CMD_MEMORY_MODE);
+    oled_send_command(ctx, 0x00);  // Modo horizontal
+    oled_send_command(ctx, OLED_CMD_SEG_REMAP | 0x01);
+    oled_send_command(ctx, OLED_CMD_COM_SCAN_DEC);
+    oled_send_command(ctx, OLED_CMD_SET_COM_PINS);
+    oled_send_command(ctx, 0x12);
+    oled_send_command(ctx, OLED_CMD_SET_CONTRAST);
+    oled_send_command(ctx, 0xCF);
+    oled_send_command(ctx, OLED_CMD_SET_PRECHARGE);
+    oled_send_command(ctx, 0xF1);
+    oled_send_command(ctx, OLED_CMD_SET_VCOM_DETECT);
+    oled_send_command(ctx, 0x40);
+    oled_send_command(ctx, OLED_CMD_NORMAL_DISPLAY);
+    oled_send_command(ctx, OLED_CMD_DEACTIVATE_SCROLL);
+    oled_send_command(ctx, OLED_CMD_DISPLAY_ON);
+
+    ctx->initialized = true;
+
+    // Limpar display
+    oled_clear(ctx);
+    oled_display(ctx);
+
+    printf("📺 Display OLED SSD1306 inicializado (128x64, I2C 0x%02X)\n", ctx->address);
+
+    return ctx;
+}
+
+/**
+ * @brief Finaliza o display OLED e libera recursos
+ */
+void oled_cleanup(oled_context_t* ctx) {
+    if (!ctx) return;
+
+    if (ctx->initialized) {
+        oled_clear(ctx);
+        oled_display(ctx);
+        oled_send_command(ctx, OLED_CMD_DISPLAY_OFF);
+    }
+
+    if (ctx->i2c_fd >= 0) {
+        close(ctx->i2c_fd);
+    }
+
+    free(ctx);
+    printf("📺 Display OLED finalizado\n");
+}
+
+/**
+ * @brief Limpa o buffer do display
+ */
+void oled_clear(oled_context_t* ctx) {
+    if (!ctx) return;
+    memset(ctx->buffer, 0, sizeof(ctx->buffer));
+}
+
+/**
+ * @brief Atualiza o display com o conteúdo do buffer
+ */
+bool oled_display(oled_context_t* ctx) {
+    if (!ctx || !ctx->initialized) return false;
+
+    // Configurar área de escrita (toda a tela)
+    oled_send_command(ctx, OLED_CMD_COLUMN_ADDR);
+    oled_send_command(ctx, 0);              // Coluna inicial
+    oled_send_command(ctx, OLED_WIDTH - 1); // Coluna final
+    oled_send_command(ctx, OLED_CMD_PAGE_ADDR);
+    oled_send_command(ctx, 0);              // Página inicial
+    oled_send_command(ctx, 7);              // Página final (64/8 = 8 páginas)
+
+    // Enviar buffer em blocos (I2C tem limite de tamanho)
+    const size_t chunk_size = 16;
+    for (size_t i = 0; i < sizeof(ctx->buffer); i += chunk_size) {
+        size_t len = (i + chunk_size > sizeof(ctx->buffer)) ?
+                     (sizeof(ctx->buffer) - i) : chunk_size;
+        if (!oled_send_data(ctx, &ctx->buffer[i], len)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * @brief Define um pixel no buffer
+ */
+void oled_set_pixel(oled_context_t* ctx, uint8_t x, uint8_t y, uint8_t color) {
+    if (!ctx || x >= OLED_WIDTH || y >= OLED_HEIGHT) return;
+
+    uint16_t index = x + (y / 8) * OLED_WIDTH;
+    uint8_t bit = y % 8;
+
+    if (color) {
+        ctx->buffer[index] |= (1 << bit);
+    } else {
+        ctx->buffer[index] &= ~(1 << bit);
+    }
+}
+
+/**
+ * @brief Desenha um caractere no buffer
+ */
+void oled_draw_char(oled_context_t* ctx, uint8_t x, uint8_t y, char c) {
+    if (!ctx || c < 32 || c > 95) return;
+
+    const uint8_t* glyph = font_8x8[c - 32];
+
+    for (uint8_t i = 0; i < 8; i++) {
+        for (uint8_t j = 0; j < 8; j++) {
+            if (glyph[i] & (1 << j)) {
+                oled_set_pixel(ctx, x + i, y + j, 1);
+            }
+        }
+    }
+}
+
+/**
+ * @brief Desenha uma string no buffer
+ */
+void oled_draw_string(oled_context_t* ctx, uint8_t x, uint8_t y, const char* str) {
+    if (!ctx || !str) return;
+
+    uint8_t cur_x = x;
+    while (*str && cur_x < OLED_WIDTH) {
+        oled_draw_char(ctx, cur_x, y, *str);
+        cur_x += 8;
+        str++;
+    }
+}
+
+/**
+ * @brief Desenha uma linha horizontal
+ */
+void oled_draw_hline(oled_context_t* ctx, uint8_t x, uint8_t y, uint8_t width) {
+    if (!ctx) return;
+
+    for (uint8_t i = 0; i < width && (x + i) < OLED_WIDTH; i++) {
+        oled_set_pixel(ctx, x + i, y, 1);
+    }
+}
+
+/**
+ * @brief Exibe tela de inicialização
+ */
+void oled_display_splash(oled_context_t* ctx, const char* device_name) {
+    if (!ctx) return;
+
+    oled_clear(ctx);
+
+    // Título
+    oled_draw_string(ctx, 16, 8, "COEL E33");
+    oled_draw_string(ctx, 8, 20, "DataLogger");
+
+    // Linha separadora
+    oled_draw_hline(ctx, 0, 32, OLED_WIDTH);
+
+    // Nome do dispositivo
+    if (device_name) {
+        uint8_t x_offset = (OLED_WIDTH - strlen(device_name) * 8) / 2;
+        oled_draw_string(ctx, x_offset, 40, device_name);
+    }
+
+    // Rodapé
+    oled_draw_string(ctx, 0, 56, "Nova Instruments");
+
+    oled_display(ctx);
+}
+
+/**
+ * @brief Exibe informações do datalogger no display
+ */
+void oled_display_datalogger_info(oled_context_t* ctx, const char* device_name,
+                                   const modbus_data_t* data, uint32_t record_count) {
+    if (!ctx || !data) return;
+
+    oled_clear(ctx);
+
+    // Linha 1: Nome do dispositivo
+    char line[32];
+    snprintf(line, sizeof(line), "%s", device_name ? device_name : "N/A");
+    oled_draw_string(ctx, 0, 0, line);
+
+    // Hora atual (sem segundos) - alinhada à direita
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    snprintf(line, sizeof(line), "%02d:%02d",
+             tm_info->tm_hour, tm_info->tm_min);
+    // Posição X = 128 - (5 caracteres * 8 pixels) = 88 pixels
+    oled_draw_string(ctx, 88, 0, line);
+
+    // Linha separadora
+    oled_draw_hline(ctx, 0, 10, OLED_WIDTH);
+
+    // Linha 3: Temperatura
+    if (data->valid_0x200) {
+        int16_t temp_raw = (int16_t)data->addr_0x200;
+        float temp_celsius = temp_raw / 10.0f;
+        snprintf(line, sizeof(line), "Temp: %.1fC", temp_celsius);
+    } else {
+        snprintf(line, sizeof(line), "Temp: ERROR");
+    }
+    oled_draw_string(ctx, 0, 16, line);
+
+    // Linha 4: Setpoint
+    if (data->valid_0x2803) {
+        int16_t setpoint_raw = (int16_t)data->addr_0x2803;
+        float setpoint_celsius = setpoint_raw / 10.0f;
+        snprintf(line, sizeof(line), "Setp: %.1fC", setpoint_celsius);
+    } else {
+        snprintf(line, sizeof(line), "Setp: ERROR");
+    }
+    oled_draw_string(ctx, 0, 28, line);
+
+    // Linha 5: Status da porta
+    if (data->valid_0x21f) {
+        snprintf(line, sizeof(line), "Port: %s",
+                 data->addr_0x21f_binary ? "ABERTA" : "FECHADA");
+    } else {
+        snprintf(line, sizeof(line), "Port: ERROR");
+    }
+    oled_draw_string(ctx, 0, 40, line);
+
+    // Linha 6: Data atual (centralizada)
+    snprintf(line, sizeof(line), "%02d/%02d/%04d",
+             tm_info->tm_mday, tm_info->tm_mon + 1, tm_info->tm_year + 1900);
+    // Centralizar: 10 caracteres * 8 pixels = 80 pixels, (128 - 80) / 2 = 24 pixels
+    oled_draw_string(ctx, 24, 52, line);
+
+    oled_display(ctx);
+}
+
+/**
+ * @brief Exibe mensagem de erro no display
+ */
+void oled_display_error(oled_context_t* ctx, const char* error_msg) {
+    if (!ctx) return;
+
+    oled_clear(ctx);
+
+    // Título de erro
+    oled_draw_string(ctx, 32, 8, "ERRO!");
+
+    // Linha separadora
+    oled_draw_hline(ctx, 0, 20, OLED_WIDTH);
+
+    // Mensagem de erro (quebrar em múltiplas linhas se necessário)
+    if (error_msg) {
+        char line[17];  // 16 caracteres + null terminator
+        size_t len = strlen(error_msg);
+        size_t offset = 0;
+        uint8_t y = 28;
+
+        while (offset < len && y < 60) {
+            size_t copy_len = (len - offset > 16) ? 16 : (len - offset);
+            strncpy(line, error_msg + offset, copy_len);
+            line[copy_len] = '\0';
+
+            oled_draw_string(ctx, 0, y, line);
+
+            offset += copy_len;
+            y += 12;
+        }
+    }
+
+    oled_display(ctx);
+}
+

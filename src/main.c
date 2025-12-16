@@ -25,6 +25,7 @@
 #include "usb_manager.h"
 #include "relay_control.h"
 #include "reset_button.h"
+#include "oled_ssd1306.h"
 
 // Configurações da aplicação
 #define LOOP_INTERVAL_SECONDS 300  // 5 minutos = 300 segundos
@@ -211,6 +212,17 @@ int main(void) {
         printf("✅ Botão de reset ativo\n");
     }
 
+    // Inicializar display OLED
+    oled_context_t* oled_ctx = oled_init();
+    if (!oled_ctx) {
+        printf("⚠️  Aviso: Falha ao inicializar display OLED (continuando sem display)\n");
+    } else {
+        printf("✅ Display OLED ativo\n");
+        // Exibir tela de splash
+        oled_display_splash(oled_ctx, device_name);
+        sleep(2);  // Mostrar splash por 2 segundos
+    }
+
     // Inicializar thread de monitoramento USB
     pthread_t usb_thread;
     usb_thread_data_t usb_data = {
@@ -382,6 +394,12 @@ int main(void) {
                 }
             }
 
+            // 📺 Atualizar display OLED com dados válidos
+            if (oled_ctx) {
+                uint32_t total_logs = datalogger_ctx->record_counter;
+                oled_display_datalogger_info(oled_ctx, device_name, &data, total_logs);
+            }
+
         } else {
             // ❌ ERRO NA LEITURA MODBUS
             printf("❌ Erro: Falha na leitura de todos os registradores Modbus\n");
@@ -389,6 +407,11 @@ int main(void) {
 
             // 🔊 Emitir alarme sonoro de erro (1 beep longo)
             buzzer_signal_modbus_error();
+
+            // 📺 Exibir erro no display OLED
+            if (oled_ctx) {
+                oled_display_error(oled_ctx, "Erro Modbus");
+            }
         }
 
         printf("----------------------------------------\n");
@@ -415,6 +438,9 @@ int main(void) {
     // Limpar recursos
     reset_button_cleanup();
     relay_cleanup();
+    if (oled_ctx) {
+        oled_cleanup(oled_ctx);
+    }
     datalogger_cleanup(datalogger_ctx);
     modbus_cleanup(modbus_ctx);
 
