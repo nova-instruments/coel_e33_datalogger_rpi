@@ -322,7 +322,7 @@ int main(void) {
                            previous_door_state, data.addr_0x21f);
 
                     // Controlar lâmpada baseado no estado da porta
-                    relay_control_lamp_by_door(data.addr_0x21f_binary);
+                    //relay_control_lamp_by_door(data.addr_0x21f_binary);
                 }
             }
 
