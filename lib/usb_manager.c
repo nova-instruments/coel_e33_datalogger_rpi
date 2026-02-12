@@ -771,10 +771,10 @@ int force_unmount_all_usb(void) {
 /**
  * @brief Extração automática completa de todos os logs para USB
  */
-int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* callbacks) {
-    if (!source_dir) {
+int usb_auto_extract_all_logs(const char* source_dir, const char* device_prefix, const usb_callbacks_t* callbacks) {
+    if (!source_dir || !device_prefix) {
         if (callbacks && callbacks->on_error) {
-            callbacks->on_error(USB_ERROR_INVALID_PARAM, "Diretório de origem inválido");
+            callbacks->on_error(USB_ERROR_INVALID_PARAM, "Diretório de origem ou prefixo do dispositivo inválido");
         }
         return USB_ERROR_INVALID_PARAM;
     }
@@ -816,19 +816,20 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
         callbacks->on_progress(30, "Copiando bancos de dados...");
     }
 
-    // Copiar apenas arquivos de banco do DataLogger (padrão: NI*.db)
+    // Copiar apenas arquivos de banco do DataLogger usando o prefixo do dispositivo
     char command[1024];
     snprintf(command, sizeof(command),
-             "find \"%s\" -name \"NI*.db\" -type f -exec cp {} \"%s/\" \\; 2>/dev/null",
-             source_dir, usb_device->mount_point);
+             "find \"%s\" -name \"%s*.db\" -type f -exec cp {} \"%s/\" \\; 2>/dev/null",
+             source_dir, device_prefix, usb_device->mount_point);
 
+    printf("📋 Buscando arquivos: %s*.db\n", device_prefix);
     int copy_result = system(command);
 
     // Verificar quantos arquivos foram copiados
     char count_command[1024];
     snprintf(count_command, sizeof(count_command),
-             "find \"%s\" -name \"NI*.db\" -type f | wc -l",
-             usb_device->mount_point);
+             "find \"%s\" -name \"%s*.db\" -type f | wc -l",
+             usb_device->mount_point, device_prefix);
 
     FILE* count_fp = popen(count_command, "r");
     int file_count = 0;
@@ -882,8 +883,8 @@ int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* cal
 /**
  * @brief Monitora continuamente inserção de pen drives para extração automática
  */
-void usb_monitor_and_extract(const char* source_dir, volatile bool* running, const usb_callbacks_t* callbacks) {
-    if (!source_dir || !running) {
+void usb_monitor_and_extract(const char* source_dir, const char* device_prefix, volatile bool* running, const usb_callbacks_t* callbacks) {
+    if (!source_dir || !device_prefix || !running) {
         if (callbacks && callbacks->on_error) {
             callbacks->on_error(USB_ERROR_INVALID_PARAM, "Parâmetros inválidos para monitoramento");
         }
@@ -892,6 +893,7 @@ void usb_monitor_and_extract(const char* source_dir, volatile bool* running, con
 
     printf("🔍 Iniciando monitoramento de pen drives para extração automática...\n");
     printf("📁 Diretório de logs: %s\n", source_dir);
+    printf("🏷️  Prefixo do dispositivo: %s\n", device_prefix);
     printf("💡 Insira um pen drive para iniciar extração automática\n");
 
     time_t last_check = 0;
@@ -918,7 +920,7 @@ void usb_monitor_and_extract(const char* source_dir, volatile bool* running, con
                 sleep(2);
 
                 // Executar extração automática
-                int result = usb_auto_extract_all_logs(source_dir, callbacks);
+                int result = usb_auto_extract_all_logs(source_dir, device_prefix, callbacks);
 
                 if (result == USB_SUCCESS) {
                     printf("✅ Extração concluída com sucesso!\n");

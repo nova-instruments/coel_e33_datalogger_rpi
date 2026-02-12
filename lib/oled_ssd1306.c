@@ -329,10 +329,11 @@ void oled_draw_char(oled_context_t* ctx, uint8_t x, uint8_t y, char c) {
 
     const uint8_t* glyph = font_8x8[c - 32];
 
-    for (uint8_t i = 0; i < 8; i++) {
-        for (uint8_t j = 0; j < 8; j++) {
-            if (glyph[i] & (1 << j)) {
-                oled_set_pixel(ctx, x + i, y + j, 1);
+    for (uint8_t col = 0; col < 8; col++) {
+        uint8_t line = glyph[col];
+        for (uint8_t row = 0; row < 8; row++) {
+            if (line & (1 << row)) {
+                oled_set_pixel(ctx, x + col, y + row, 1);
             }
         }
     }
@@ -446,30 +447,11 @@ void oled_display_error(oled_context_t* ctx, const char* error_msg) {
 
     oled_clear(ctx);
 
-    // Título de erro
-    oled_draw_string(ctx, 32, 8, "ERRO!");
+    // Linha 1
+    oled_draw_string(ctx, 25, 16, "FALHA COMM");
 
-    // Linha separadora
-    oled_draw_hline(ctx, 0, 20, OLED_WIDTH);
-
-    // Mensagem de erro (quebrar em múltiplas linhas se necessário)
-    if (error_msg) {
-        char line[17];  // 16 caracteres + null terminator
-        size_t len = strlen(error_msg);
-        size_t offset = 0;
-        uint8_t y = 28;
-
-        while (offset < len && y < 60) {
-            size_t copy_len = (len - offset > 16) ? 16 : (len - offset);
-            strncpy(line, error_msg + offset, copy_len);
-            line[copy_len] = '\0';
-
-            oled_draw_string(ctx, 0, y, line);
-
-            offset += copy_len;
-            y += 12;
-        }
-    }
+    // Linha 2
+    oled_draw_string(ctx, 40, 32, "MODBUS");
 
     oled_display(ctx);
 }

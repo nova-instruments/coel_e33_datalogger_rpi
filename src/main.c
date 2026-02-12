@@ -28,9 +28,14 @@
 #include "oled_ssd1306.h"
 
 // Configurações da aplicação
-#define LOOP_INTERVAL_SECONDS 300  // 5 minutos = 300 segundos
+#define LOOP_INTERVAL_SECONDS 300  // 1 minuto = 60 segundos
 #define DEFAULT_DEVICE_NAME "NI00002"  // Nome padrão do dispositivo
 #define CONFIG_FILE "/boot/firmware/config.txt"  // Arquivo de configuração do sistema
+
+// ⚙️ CONFIGURAÇÃO: Alarme de falta de comunicação Modbus
+// true  = Buzzer emite alarme quando há erro de comunicação com COEL
+// false = Buzzer desabilitado para erros Modbus (silencioso)
+static const bool ENABLE_MODBUS_ERROR_ALARM = false;
 
 // Variável global para controle do loop principal
 static volatile bool running = true;
@@ -38,6 +43,7 @@ static volatile bool running = true;
 // Estrutura para passar dados para thread USB
 typedef struct {
     const char* source_dir;
+    const char* device_prefix;  // Prefixo do dispositivo (ex: "NI", "BK")
     volatile bool* running;
 } usb_thread_data_t;
 
@@ -146,7 +152,7 @@ void* usb_monitor_thread(void* arg) {
     }
 
     // Monitorar pen drives
-    usb_monitor_and_extract(data->source_dir, data->running, &callbacks);
+    usb_monitor_and_extract(data->source_dir, data->device_prefix, data->running, &callbacks);
 
     // Cleanup
     usb_manager_cleanup();
@@ -227,6 +233,7 @@ int main(void) {
     pthread_t usb_thread;
     usb_thread_data_t usb_data = {
         .source_dir = "/home/nova",
+        .device_prefix = device_name,  // Usar o nome completo do dispositivo como prefixo
         .running = &running
     };
 
@@ -369,12 +376,12 @@ int main(void) {
                 previous_alarm_state_valid = true;
             }
 
-            // Verificar se é hora do log periódico (5 minutos)
+            // Verificar se é hora do log periódico (1 minuto)
             time_t current_time = time(NULL);
             if (!should_log && (current_time - last_periodic_log) >= LOOP_INTERVAL_SECONDS) {
                 should_log = true;
                 last_periodic_log = current_time;
-                printf("⏰ Log periódico (5 minutos)\n");
+                printf("⏰ Log periódico (1 minuto)\n");
             }
 
             // ✅ GRAVAR NO DATALOGGER (apenas quando leitura foi bem-sucedida)
@@ -405,8 +412,10 @@ int main(void) {
             printf("❌ Erro: Falha na leitura de todos os registradores Modbus\n");
             printf("⚠️  NÃO será gravado no datalogger (dados inválidos)\n");
 
-            // 🔊 Emitir alarme sonoro de erro (1 beep longo)
-            buzzer_signal_modbus_error();
+            // 🔊 Emitir alarme sonoro de erro (1 beep longo) - se habilitado
+            if (ENABLE_MODBUS_ERROR_ALARM) {
+                buzzer_signal_modbus_error();
+            }
 
             // 📺 Exibir erro no display OLED
             if (oled_ctx) {
@@ -417,7 +426,7 @@ int main(void) {
         printf("----------------------------------------\n");
 
         // Aguardar próxima leitura (verificação mais frequente para detectar mudanças)
-        // Verificar a cada 2 segundos em vez de 5 minutos
+        // Verificar a cada 2 segundos para detectar mudanças de porta/alarme
         for (int i = 0; i < 2 && running; i++) {
             sleep(1);
         }

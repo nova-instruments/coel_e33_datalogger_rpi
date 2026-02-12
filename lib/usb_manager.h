@@ -72,18 +72,20 @@ int unmount_usb_device(const char* mount_point);
  * @brief Extração automática completa de todos os logs para USB
  * Detecta USB, monta, copia todos os arquivos .txt, desmonta e ejeta
  * @param source_dir Diretório com arquivos de log (ex: "/home/nova")
+ * @param device_prefix Prefixo do dispositivo (ex: "NI00001", "BK00002") para buscar arquivos
  * @param callbacks Callbacks para notificação de progresso (pode ser NULL)
  * @return 0 em caso de sucesso, código de erro negativo caso contrário
  */
-int usb_auto_extract_all_logs(const char* source_dir, const usb_callbacks_t* callbacks);
+int usb_auto_extract_all_logs(const char* source_dir, const char* device_prefix, const usb_callbacks_t* callbacks);
 
 /**
  * @brief Monitora continuamente inserção de pen drives para extração automática
  * @param source_dir Diretório com arquivos de log
+ * @param device_prefix Prefixo do dispositivo (ex: "NI00001", "BK00002") para buscar arquivos
  * @param running Ponteiro para flag de controle do loop
  * @param callbacks Callbacks para notificação de progresso (pode ser NULL)
  */
-void usb_monitor_and_extract(const char* source_dir, volatile bool* running, const usb_callbacks_t* callbacks);
+void usb_monitor_and_extract(const char* source_dir, const char* device_prefix, volatile bool* running, const usb_callbacks_t* callbacks);
 
 /**
  * @brief Inicializa o buzzer no GPIO23
